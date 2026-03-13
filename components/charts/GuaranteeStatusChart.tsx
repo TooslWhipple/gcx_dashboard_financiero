@@ -28,15 +28,17 @@ interface GuaranteeStatusChartProps {
 }
 
 const STATUS_COLORS = {
-  scheduled: '#2196F3',  // Azul - Programadas
-  naviera:   '#FF9800',  // Naranja - Naviera
-  operation: '#4CAF50',  // Verde - Operación
+  programadas: '#2196F3',  // Azul - Programadas
+  naviera:    '#FF9800',  // Naranja - Naviera
+  operacion:  '#4CAF50',  // Verde - Operación
+  recuperadas: '#9C27B0',  // Morado - Recuperadas
 };
 
 const STATUS_LABELS = {
-  scheduled: 'Programadas',
-  naviera:   'Naviera',
-  operation: 'Operación',
+  programadas: 'Programadas',
+  naviera:    'Naviera',
+  operacion:  'Operación',
+  recuperadas: 'Recuperadas',
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -126,12 +128,13 @@ export function GuaranteeStatusChart({ data, year }: GuaranteeStatusChartProps) 
                           className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
                           style={{
                             backgroundColor:
-                              item.status === 'Programadas' ? STATUS_COLORS.scheduled :
+                              item.status === 'Programadas' ? STATUS_COLORS.programadas :
                               item.status === 'Naviera'     ? STATUS_COLORS.naviera :
-                                                              STATUS_COLORS.operation,
+                              item.status === 'Recuperadas' ? STATUS_COLORS.recuperadas :
+                                                              STATUS_COLORS.operacion,
                           }}
                         />
-                        {item.status === 'Operacion' ? 'Operación' : item.status}
+                        {item.status === 'Operación' ? 'Operación' : item.status}
                       </div>
                     </td>
                     <td className="px-3 py-2 sm:px-4 sm:py-3 text-right font-mono font-medium text-on-surface">
@@ -140,9 +143,10 @@ export function GuaranteeStatusChart({ data, year }: GuaranteeStatusChartProps) 
                     <td className="px-3 py-2 sm:px-4 sm:py-3 text-right font-bold"
                       style={{
                         color:
-                          item.status === 'Programadas' ? STATUS_COLORS.scheduled :
+                          item.status === 'Programadas' ? STATUS_COLORS.programadas :
                           item.status === 'Naviera'     ? STATUS_COLORS.naviera :
-                                                          STATUS_COLORS.operation,
+                          item.status === 'Recuperadas' ? STATUS_COLORS.recuperadas :
+                                                          STATUS_COLORS.operacion,
                       }}
                     >
                       {item.percentage.toFixed(1)}%
@@ -212,6 +216,16 @@ export function GuaranteeStatusChart({ data, year }: GuaranteeStatusChartProps) 
                     </td>
                   ))}
                 </tr>
+                <tr className="hover:bg-purple-50 transition-colors">
+                  <td className="px-2 py-2 sm:px-3 font-semibold text-purple-700 border border-gray-200 bg-purple-50 sticky left-0 z-10">
+                    Recuperadas
+                  </td>
+                  {visibleWeeks.map((w) => (
+                    <td key={w.weekNumber} className="px-2 py-2 sm:px-3 text-right font-mono border border-gray-200 whitespace-nowrap">
+                      {w.recovered > 0 ? formatCurrency(w.recovered) : '—'}
+                    </td>
+                  ))}
+                </tr>
                 <tr className="bg-yellow-50 font-semibold border-t-2 border-yellow-400">
                   <td className="px-2 py-2 sm:px-3 font-bold border border-gray-200 sticky left-0 bg-yellow-50 z-10">Total</td>
                   {visibleWeeks.map((w) => (
@@ -267,12 +281,14 @@ export function GuaranteeStatusChart({ data, year }: GuaranteeStatusChartProps) 
                 wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
                 formatter={(value) =>
                   value === 'scheduled' ? 'Programadas' :
-                  value === 'naviera'   ? 'Naviera' : 'Operación'
+                  value === 'naviera'     ? 'Naviera' :
+                  value === 'recovered' ? 'Recuperadas' : 'Operación'
                 }
               />
-              <Bar dataKey="scheduled" name="scheduled" stackId="a" fill={STATUS_COLORS.scheduled} />
-              <Bar dataKey="naviera"   name="naviera"   stackId="a" fill={STATUS_COLORS.naviera} />
-              <Bar dataKey="operation" name="operation" stackId="a" fill={STATUS_COLORS.operation} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="scheduled" name="programadas" stackId="a" fill={STATUS_COLORS.programadas} />
+              <Bar dataKey="naviera"     name="naviera"     stackId="a" fill={STATUS_COLORS.naviera} />
+              <Bar dataKey="operation"   name="operacion"   stackId="a" fill={STATUS_COLORS.operacion} />
+              <Bar dataKey="recovered" name="recuperadas" stackId="a" fill={STATUS_COLORS.recuperadas} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

@@ -60,10 +60,25 @@ export async function GET(request: NextRequest) {
 
     if (!result.success || !result.data) {
       console.error('Error fetching cobranza data:', result.error);
-      return NextResponse.json(
-        { error: 'Error al obtener datos de la base de datos' },
-        { status: 500 }
-      );
+      
+      // Return fallback data to prevent UI errors
+      const fallbackResponse: AgingData = {
+        chartData: [
+          { range: '1-30', amount: 0, percentage: 0, color: '#2196F3', riskLevel: 'low' },
+          { range: '31-60', amount: 0, percentage: 0, color: '#FFC107', riskLevel: 'medium' },
+          { range: '61-90', amount: 0, percentage: 0, color: '#FF9800', riskLevel: 'high' },
+          { range: '91-120', amount: 0, percentage: 0, color: '#F44336', riskLevel: 'critical' },
+          { range: '121-5000', amount: 0, percentage: 0, color: '#D32F2F', riskLevel: 'critical' },
+        ],
+        tableData: [],
+        summary: {
+          totalAmount: 0,
+          totalClients: 0,
+          averageDays: 0,
+        },
+      };
+      
+      return NextResponse.json(fallbackResponse);
     }
 
     // Filtrar clientes internos en JS (réplica exacta de dbo.EsClienteInterno)

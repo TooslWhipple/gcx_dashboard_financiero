@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const rawData: any[] = result.data;
 
     // Agrupar por semana
-    const weekMap = new Map<number, { scheduled: number; naviera: number; operation: number }>();
+    const weekMap = new Map<number, { scheduled: number; naviera: number; operation: number; recovered: number }>();
 
     rawData.forEach((row) => {
       const semana = row.Semana || row.semana || 0;
@@ -60,13 +60,14 @@ export async function GET(request: NextRequest) {
       const importe = row.ImporteMN || 0;
 
       if (!weekMap.has(semana)) {
-        weekMap.set(semana, { scheduled: 0, naviera: 0, operation: 0 });
+        weekMap.set(semana, { scheduled: 0, naviera: 0, operation: 0, recovered: 0 });
       }
       const entry = weekMap.get(semana)!;
 
       if (estatus === 'Programadas') entry.scheduled += importe;
       else if (estatus === 'Naviera') entry.naviera += importe;
-      else if (estatus === 'Operacion') entry.operation += importe;
+      else if (estatus === 'Operación') entry.operation += importe;
+      else if (estatus === 'Recuperadas') entry.recovered += importe;
     });
 
     // Construir array de semanas ordenado
@@ -78,14 +79,16 @@ export async function GET(request: NextRequest) {
         scheduled: Math.round(data.scheduled * 100) / 100,
         naviera: Math.round(data.naviera * 100) / 100,
         operation: Math.round(data.operation * 100) / 100,
-        total: Math.round((data.scheduled + data.naviera + data.operation) * 100) / 100,
+        recovered: Math.round(data.recovered * 100) / 100,
+        total: Math.round((data.scheduled + data.naviera + data.operation + data.recovered) * 100) / 100,
       }));
 
     // Calcular resumen total por estatus
     const totalScheduled = weeks.reduce((s, w) => s + w.scheduled, 0);
     const totalNaviera = weeks.reduce((s, w) => s + w.naviera, 0);
     const totalOperation = weeks.reduce((s, w) => s + w.operation, 0);
-    const grandTotal = totalScheduled + totalNaviera + totalOperation;
+    const totalRecovered = weeks.reduce((s, w) => s + w.recovered, 0);
+    const grandTotal = totalScheduled + totalNaviera + totalOperation + totalRecovered;
 
     const summary: GuaranteeStatusSummary[] = [
       {
@@ -99,9 +102,14 @@ export async function GET(request: NextRequest) {
         percentage: grandTotal > 0 ? Math.round((totalNaviera / grandTotal) * 10000) / 100 : 0,
       },
       {
-        status: 'Operacion' as GuaranteeStatus,
+        status: 'Operación' as GuaranteeStatus,
         amount: Math.round(totalOperation * 100) / 100,
         percentage: grandTotal > 0 ? Math.round((totalOperation / grandTotal) * 10000) / 100 : 0,
+      },
+      {
+        status: 'Recuperadas' as GuaranteeStatus,
+        amount: Math.round(totalRecovered * 100) / 100,
+        percentage: grandTotal > 0 ? Math.round((totalRecovered / grandTotal) * 10000) / 100 : 0,
       },
     ];
 

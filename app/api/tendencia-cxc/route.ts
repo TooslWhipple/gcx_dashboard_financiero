@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[TENDENCIA-CXC] Query directa a tablas base, año ${year}`);
 
-    const result = await executeQueryWithRetry(query, { useCache: true, retries: 2 });
+    const result = await executeQueryWithRetry(query, { useCache: false, retries: 2 });
 
     if (!result.success || !result.data) {
       console.error('Error fetching CXC data:', result.error);
@@ -102,12 +102,12 @@ export async function GET(request: NextRequest) {
       const diasCredito = row.DiasCredito || 0;
       const rfc = (row.RFC || '').trim();
       const nombre = (row.RazonSocial || '').trim();
-      const sucursal = (row.Sucursal || '').trim();
 
-      // Lógica exacta de fn_CuentasPorCobrar_Excel:
-      // Tiempo = Saldo si DiasTranscurridos <= DiasCredito
-      // Vencido = Saldo si DiasTranscurridos > DiasCredito
-      const esVencido = diasTranscurridos > diasCredito;
+      // Según los nuevos requerimientos (Cambios de a dashboard.md):
+      // Corriente = 1 a 30 días (DiasTranscurridos <= 30)
+      // Vencido = 31 días en adelante (DiasTranscurridos > 30)
+      // Ya no depende de DiasCredito
+      const esVencido = diasTranscurridos > 30;
       const vencido = esVencido ? saldo : 0;
       const enTiempo = esVencido ? 0 : saldo;
 
@@ -132,7 +132,6 @@ export async function GET(request: NextRequest) {
           onTime: enTiempo,
           overdue: vencido,
           total: saldo,
-          branch: sucursal || 'Sin Sucursal',
           month: mes,
         });
       }
@@ -163,7 +162,6 @@ export async function GET(request: NextRequest) {
           onTime: Math.round(detail.onTime * 100) / 100,
           overdue: Math.round(detail.overdue * 100) / 100,
           total: Math.round(detail.total * 100) / 100,
-          branch: detail.branch,
           month: detail.month,
         });
       }

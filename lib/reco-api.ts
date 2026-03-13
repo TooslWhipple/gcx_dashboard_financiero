@@ -3,7 +3,7 @@
 // http://rws.grucas.com:19287/api/reco/encoded
 
 const RECO_API_URL = process.env.RECO_API_URL || 'http://rws.grucas.com:19287/api/reco/encoded';
-const RECO_TIMEOUT_MS = 9000; // 9s para caber dentro del límite de 10s de Netlify Functions
+const RECO_TIMEOUT_MS = 25000; // 25s para caber dentro del límite de 30s de Netlify Functions
 
 /**
  * Codifica un string a Base64 (compatible con Node.js y Edge)

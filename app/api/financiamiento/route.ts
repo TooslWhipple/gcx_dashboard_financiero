@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
           monthName: formatMonthName(month),
           pendingInvoice: Math.round(totalPending * 100) / 100,
           invoiced: Math.round(totalInvoiced * 100) / 100,
+          paymentsMade: 0, // TODO: US-004 mapear este valor desde RECO
           total: Math.round((totalPending + totalInvoiced) * 100) / 100,
         });
       } catch (error) {
@@ -91,6 +92,7 @@ export async function GET(request: NextRequest) {
           monthName: formatMonthName(month),
           pendingInvoice: 0,
           invoiced: 0,
+          paymentsMade: 0,
           total: 0,
         });
       }

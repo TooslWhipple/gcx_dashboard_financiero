@@ -195,8 +195,9 @@ export function FinancingTrendChart({
                   <th className="text-left px-3 py-2 sm:px-4 sm:py-3 font-semibold sticky left-0 bg-blue-700 z-10">Mes</th>
                   <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Por Facturar</th>
                   <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Facturado</th>
+                  <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Pagos Hechos</th>
                   <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Total</th>
-                  <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold">%</th>
+                  <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold">% Facturado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant">
@@ -214,6 +215,9 @@ export function FinancingTrendChart({
                       <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono whitespace-nowrap text-orange-700">
                         {m.invoiced > 0 ? formatCurrency(m.invoiced) : '—'}
                       </td>
+                      <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono whitespace-nowrap text-green-700">
+                        {m.paymentsMade > 0 ? formatCurrency(m.paymentsMade) : '—'}
+                      </td>
                       <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono font-semibold whitespace-nowrap">
                         {monthTotal > 0 ? formatCurrency(monthTotal) : '—'}
                       </td>
@@ -230,6 +234,9 @@ export function FinancingTrendChart({
                   <td className="px-3 py-2 sm:px-4 sticky left-0 bg-blue-50 z-10">Total</td>
                   <td className="px-3 py-2 sm:px-4 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalPending)}</td>
                   <td className="px-3 py-2 sm:px-4 text-right font-mono text-orange-700 whitespace-nowrap">{formatCurrency(totalInvoiced)}</td>
+                  <td className="px-3 py-2 sm:px-4 text-right font-mono text-green-700 whitespace-nowrap">
+                    {formatCurrency(data.months.reduce((s, m) => s + m.paymentsMade, 0))}
+                  </td>
                   <td className="px-3 py-2 sm:px-4 text-right font-mono whitespace-nowrap">{formatCurrency(totalFinancing)}</td>
                   <td className={`px-3 py-2 sm:px-4 text-right font-bold ${
                     pctInvoiced >= 50 ? 'text-green-600' : 'text-orange-600'

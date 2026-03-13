@@ -96,9 +96,9 @@ export const trendSeriesColors = {
   currentYear: '#6750A4',     // Primary
   previousYear: '#958DA5',    // Secondary-light
   
-  // US-003: Tendencia CXC (Vencido vs En tiempo)
-  vencido: '#2196F3',         // Blue-500
-  enTiempo: '#FF9800',        // Orange-500
+  // US-003: Tendencia CXC (Vencido vs Corriente)
+  vencido: '#FFC107',         // Yellow-500 (para gráfica)
+  corriente: '#2196F3',       // Blue-500
   
   // US-004: Financiamiento
   porFacturar: '#1565C0',     // Blue-800 (mismo tono que Vencido)
@@ -123,10 +123,15 @@ export const guaranteeStatusColors = {
     text: '#EF6C00',          // Orange-700
     border: '#FF9800',        // Orange-500
   },
-  Operacion: {
+  Operación: {
     fill: '#E8F5E9',          // Green-50
     text: '#2E7D32',          // Green-700
     border: '#4CAF50',        // Green-500
+  },
+  Recuperadas: {
+    fill: '#F3E5F5',          // Purple-50
+    text: '#7B1FA2',          // Purple-700
+    border: '#9C27B0',        // Purple-500
   },
 };
 
@@ -190,7 +195,7 @@ export const getAgingRiskLevel = (range: AgingRange): RiskLevel => {
 /**
  * Get guarantee status color
  */
-export const getGuaranteeStatusColor = (status: 'Programadas' | 'Naviera' | 'Operacion') => {
+export const getGuaranteeStatusColor = (status: 'Programadas' | 'Naviera' | 'Operación' | 'Recuperadas') => {
   return guaranteeStatusColors[status] || guaranteeStatusColors.Programadas;
 };
 

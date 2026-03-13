@@ -1,7 +1,7 @@
 // app/api/facturacion/route.ts
-// API Route para US-007: Facturación DAC (Honorarios vs Complementarios)
+// API Route para US-008: Facturación DAC (Honorarios vs Complementarios)
 // fn_Facturacion NO EXISTE en RECO — usamos consulta directa a tablas base
-// Agrupación semanal (como referencia visual) con desglose por oficina (Unidad)
+// Agrupación semanal con desglose por oficina (Unidad)
 // GET /api/facturacion?year=2026&idEmpresa=1
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         id: oficina,
         name: oficina,
         monthlyData: aduanaWeekly,
-        average: nonZero.length > 0 ? Math.round(((totHon + totOtros) / nonZero.length) * 100) / 100 : 0,
+        average: nonZero.length > 0 ? Math.round((totHon + totOtros) / nonZero.length * 100) / 100 : 0,
         totalHonorarios: Math.round(totHon * 100) / 100,
         totalOtros: Math.round(totOtros * 100) / 100,
       });

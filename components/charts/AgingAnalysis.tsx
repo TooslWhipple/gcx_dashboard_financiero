@@ -82,8 +82,7 @@ export function AgingAnalysis({
     { key: 'range61to90', label: '61-90 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
     { key: 'range91to120', label: '91-120 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
     { key: 'range121plus', label: '121+ días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%', cellClassName: 'bg-red-50 text-red-700 font-medium' },
-    { key: 'total', label: 'Total', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
-    { key: 'branch', label: 'Sucursal', sortable: true, width: '12%' },
+    { key: 'total', label: 'Total', sortable: true, align: 'right' as const, format: 'currency' as const, width: '15%' },
   ];
 
   return (
