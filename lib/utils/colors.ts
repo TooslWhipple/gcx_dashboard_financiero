@@ -100,6 +100,10 @@ export const trendSeriesColors = {
   vencido: '#FFC107',         // Yellow-500 (para gráfica)
   corriente: '#2196F3',       // Blue-500
   
+  // US-006: Tendencia Garantías Recuperadas
+  recuperadasActual: '#9C27B0',  // Purple-500 (año actual)
+  recuperadasAnterior: '#958DA5', // Purple-200 (año anterior)
+  
   // US-004: Financiamiento
   porFacturar: '#1565C0',     // Blue-800 (mismo tono que Vencido)
   facturado: '#FF9800',       // Orange-500 (mismo tono que En Tiempo)

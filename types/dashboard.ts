@@ -329,4 +329,7 @@ export interface FilterOption {
   label: string;
   value: string;
 }
-export interface RecoveredTrendData { months: {month: number, monthName: string, amount: number}[] }
+export interface RecoveredTrendData {
+  currentYear: { month: number, monthName: string, amount: number }[];
+  previousYear: { month: number, monthName: string, amount: number }[];
+}

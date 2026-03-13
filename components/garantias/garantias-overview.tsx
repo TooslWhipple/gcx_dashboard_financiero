@@ -91,8 +91,8 @@ export function GarantiasOverview() {
           <LoadingState message="Cargando tendencia de garantías recuperadas..." />
         ) : isErrorRecovered ? (
           <ErrorState message="Error al cargar tendencia de garantías recuperadas." />
-        ) : recoveredData && recoveredData.data ? (
-          <RecoveredTrendChart data={recoveredData.data} year={selectedYear} />
+        ) : recoveredData ? (
+          <RecoveredTrendChart data={recoveredData} year={selectedYear} />
         ) : (
           <LoadingState message="Sin datos de recuperación disponibles." />
         )}

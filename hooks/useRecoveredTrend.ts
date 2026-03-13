@@ -5,13 +5,19 @@ import { RecoveredTrendData } from '@/types/dashboard';
 interface UseRecoveredTrendParams {
   year: number;
   idEmpresa?: number;
+  previousYear?: boolean;
 }
 
-export function useRecoveredTrend({ year, idEmpresa = 1 }: UseRecoveredTrendParams) {
+export function useRecoveredTrend({ year, idEmpresa = 1, previousYear = true }: UseRecoveredTrendParams) {
   return useQuery<RecoveredTrendData, Error>({
-    queryKey: ['recovered-trend', year, idEmpresa],
+    queryKey: ['recovered-trend', year, idEmpresa, previousYear],
     queryFn: async () => {
-      const res = await fetch(`/api/garantias/tendencia-recuperado?year=${year}&idEmpresa=${idEmpresa}`);
+      const params = new URLSearchParams({
+        year: year.toString(),
+        idEmpresa: idEmpresa.toString(),
+        ...(previousYear && { previousYear: 'true' }),
+      });
+      const res = await fetch(`/api/garantias/tendencia-recuperado?${params}`);
       if (!res.ok) {
         throw new Error('Error fetching recovered trend data');
       }
