@@ -1,9 +1,11 @@
 // app/api/garantias/tendencia-recuperado/route.ts
-// Nueva API Route para Tendencia de Garantías Recuperadas
+// Nueva API Route para Tendencia de Garantías Recuperadas (mensual)
 // GET /api/garantias/tendencia-recuperado?year=2026&idEmpresa=1&previousYear=true
+// Fuente: EXEC dbo.[sp_Estatus_Garantia] @Year, @IdEmpresa
+// Filtramos solo Estatus = 'Recuperadas', agrupamos por MES
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP } from '@/lib/reco-api';
 import { formatMonthNameShort } from '@/lib/utils/formatters';
 
 export const dynamic = 'force-dynamic';
@@ -15,26 +17,16 @@ interface MonthlyRecoveredData {
 }
 
 async function getRecoveredData(year: number, idEmpresa: number): Promise<MonthlyRecoveredData[]> {
-  const fechaInicio = `${year}-01-01`;
-  const fechaCorte = `${year}-12-31`;
+  console.log(`[GARANTIAS-RECUPERADO] EXEC sp_Estatus_Garantia ${year}, ${idEmpresa}`);
 
-  // Query para obtener SOLO lo Recuperado, agrupado por mes
-  const query = `
-    SELECT
-      MONTH(dDeposito) AS Mes,
-      SUM(ABS(ImporteMN)) AS ImporteMN
-    FROM dbo.fn_GarantiasPorCobrar('${fechaCorte}', ${idEmpresa})
-    WHERE dDeposito >= '${fechaInicio}'
-      AND dDeposito <= '${fechaCorte}'
-      AND EstatusGarantia = 'Recuperadas'
-    GROUP BY MONTH(dDeposito)
-    ORDER BY Mes
-  `;
+  const result = await executeSP(
+    'sp_Estatus_Garantia',
+    [year, idEmpresa],
+    { useCache: true, retries: 2 }
+  );
 
-  const result = await executeQueryWithRetry(query, { useCache: true, retries: 2 });
-  
   if (!result.success || !result.data) {
-    console.error(`Error fetching recovered data for year ${year}:`, result.error);
+    console.error(`[GARANTIAS-RECUPERADO] Error año ${year}:`, result.error);
     return [];
   }
 
@@ -42,25 +34,29 @@ async function getRecoveredData(year: number, idEmpresa: number): Promise<Monthl
   const isCurrentYear = year === today.getFullYear();
   const maxMonth = isCurrentYear ? today.getMonth() + 1 : 12;
 
-  // Initialize all months with 0
+  // Inicializar todos los meses en 0
   const monthMap = new Map<number, number>();
   for (let m = 1; m <= maxMonth; m++) {
     monthMap.set(m, 0);
   }
 
-  // Fill with actual data
+  // Filtrar solo 'Recuperadas' y acumular por MES
   result.data.forEach((row: any) => {
-    const mes = row.Mes || 0;
-    const importe = row.ImporteMN || 0;
+    const estatus: string = (row.Estatus ?? row.estatus ?? '').toString();
+    if (estatus !== 'Recuperadas') return;
+
+    const mes: number  = row.MES       ?? row.Mes       ?? row.mes       ?? 0;
+    const importe: number = row.ImporteMN ?? row.importemn ?? 0;
+
     if (monthMap.has(mes)) {
-      monthMap.set(mes, importe);
+      monthMap.set(mes, (monthMap.get(mes) ?? 0) + Math.abs(importe));
     }
   });
 
   return Array.from(monthMap.entries()).map(([month, amount]) => ({
     month,
     monthName: formatMonthNameShort(month),
-    amount: Math.round(amount * 100) / 100,
+    amount:    Math.round(amount * 100) / 100,
   }));
 }
 
@@ -78,26 +74,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get current year data
-    const currentYearData = await getRecoveredData(year, idEmpresa);
-    
-    // Get previous year data if requested
-    let previousYearData: MonthlyRecoveredData[] = [];
-    if (includePreviousYear) {
-      previousYearData = await getRecoveredData(year - 1, idEmpresa);
-    }
+    // Paralelo: año actual + año anterior (si se pidió)
+    const [currentYearData, previousYearData] = await Promise.all([
+      getRecoveredData(year, idEmpresa),
+      includePreviousYear ? getRecoveredData(year - 1, idEmpresa) : Promise.resolve([]),
+    ]);
 
-    const response = {
-      currentYear: currentYearData,
-      previousYear: previousYearData,
-    };
+    return NextResponse.json({ currentYear: currentYearData, previousYear: previousYearData });
 
-    return NextResponse.json(response);
   } catch (error) {
     console.error('Error en /api/garantias/tendencia-recuperado:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

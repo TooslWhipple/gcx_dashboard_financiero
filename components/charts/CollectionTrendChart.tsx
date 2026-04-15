@@ -42,9 +42,13 @@ export function CollectionTrendChart({
 }: CollectionTrendChartProps) {
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null);
 
+  // Guard: arrays vacíos → fallback
+  const currentYear = data.currentYear ?? [];
+  const previousYear = data.previousYear ?? [];
+
   // Transform data for Recharts
-  const chartData: ChartDataPoint[] = data.currentYear.map((current, index) => {
-    const previous = data.previousYear[index];
+  const chartData: ChartDataPoint[] = currentYear.map((current, index) => {
+    const previous = previousYear[index];
     return {
       month: current.month,
       monthName: formatMonthNameShort(current.month),
@@ -54,8 +58,8 @@ export function CollectionTrendChart({
   });
 
   // Calculate totals and trends
-  const currentYearTotal = data.currentYear.reduce((sum, m) => sum + m.totalCollected, 0);
-  const previousYearTotal = data.previousYear.reduce((sum, m) => sum + m.totalCollected, 0);
+  const currentYearTotal = currentYear.reduce((sum, m) => sum + m.totalCollected, 0);
+  const previousYearTotal = previousYear.reduce((sum, m) => sum + m.totalCollected, 0);
   const percentageChange = previousYearTotal > 0 
     ? ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100 
     : 0;
@@ -220,7 +224,7 @@ export function CollectionTrendChart({
           <div className="text-center">
             <p className="text-label-medium text-on-surface-variant">Facturas Año Actual</p>
             <p className="text-title-medium text-on-surface font-semibold">
-              {formatNumber(data.currentYear.reduce((sum, m) => sum + m.invoiceCount, 0))}
+              {formatNumber(currentYear.reduce((sum, m) => sum + m.invoiceCount, 0))}
             </p>
           </div>
           <div className="text-center">
@@ -232,15 +236,18 @@ export function CollectionTrendChart({
           <div className="text-center">
             <p className="text-label-medium text-on-surface-variant">Mejor Mes</p>
             <p className="text-title-medium text-on-surface font-semibold">
-              {formatMonthNameShort(
-                data.currentYear.reduce((max, m) => m.totalCollected > max.totalCollected ? m : max).month
-              )}
+              {currentYear.length > 0
+                ? formatMonthNameShort(
+                    currentYear.reduce((max, m) => m.totalCollected > max.totalCollected ? m : max, currentYear[0]).month
+                  )
+                : '—'
+              }
             </p>
           </div>
           <div className="text-center">
             <p className="text-label-medium text-on-surface-variant">Facturas Año Ant.</p>
             <p className="text-title-medium text-on-surface font-semibold">
-              {formatNumber(data.previousYear.reduce((sum, m) => sum + m.invoiceCount, 0))}
+              {formatNumber(previousYear.reduce((sum, m) => sum + m.invoiceCount, 0))}
             </p>
           </div>
         </div>

@@ -18,9 +18,15 @@ function toBase64(str: string): string {
 }
 
 /**
- * Codifica credenciales en Base64 (username:password)
+ * Obtiene el token de autenticación.
+ * Prioriza RECO_TOKEN directo (el mismo que funciona en Postman).
+ * Si no existe, genera base64 de user:password.
  */
 function getAuthToken(): string {
+  // Token directo — evita problemas de encoding con caracteres especiales
+  const directToken = process.env.RECO_TOKEN;
+  if (directToken) return directToken;
+
   const user = process.env.GCX_USER || '';
   const password = process.env.GCX_PASSWORD || '';
   return toBase64(`${user}:${password}`);
@@ -37,14 +43,14 @@ function encodeQuery(query: string): string {
  * Verifica si la query es segura (solo SELECT o WITH SELECT)
  */
 function isSafeQuery(query: string): boolean {
-  const upperQuery = query.toUpperCase();
-  const forbiddenWords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'EXEC', 'MERGE', 'CALL', 'CREATE'];
+  const upperQuery = query.toUpperCase().trim();
+  const forbiddenWords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'MERGE', 'CALL', 'CREATE'];
   
-  // Debe comenzar con SELECT o WITH
-  const hasSelect = upperQuery.trim().startsWith('SELECT') || upperQuery.trim().startsWith('WITH');
-  if (!hasSelect) return false;
+  // Debe comenzar con SELECT, WITH o EXEC (stored procedures permitidos)
+  const hasValidStart = upperQuery.startsWith('SELECT') || upperQuery.startsWith('WITH') || upperQuery.startsWith('EXEC');
+  if (!hasValidStart) return false;
   
-  // No debe contener palabras prohibidas
+  // No debe contener palabras prohibidas que modifiquen datos
   return !forbiddenWords.some(word => upperQuery.includes(word));
 }
 
@@ -81,7 +87,7 @@ export async function executeQuery(query: string): Promise<RecoQueryResult> {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ query: encodedQuery, format: 'json' }),
         signal: controller.signal,
@@ -176,6 +182,27 @@ export async function executeQueryWithParams(
   }
   
   return executeQuery(finalQuery);
+}
+
+/**
+ * Ejecuta un Stored Procedure con parámetros posicionales
+ * Genera: EXEC dbo.[spName] @param1, @param2, ...
+ * Los valores string se envuelven en comillas simples; los numéricos sin comillas.
+ */
+export async function executeSP(
+  spName: string,
+  params: (string | number | Date)[],
+  options: { useCache?: boolean; retries?: number } = {}
+): Promise<RecoQueryResult> {
+  const paramStr = params.map(p => {
+    if (typeof p === 'number') return String(p);
+    const escaped = String(p).replace(/'/g, "''");
+    return `'${escaped}'`;
+  }).join(', ');
+
+  const query = `EXEC dbo.[${spName}] ${paramStr}`;
+  console.log(`[EXEC SP] ${query.substring(0, 120)}`);
+  return executeQueryWithRetry(query, options);
 }
 
 // Queries predefinidas para el dashboard
