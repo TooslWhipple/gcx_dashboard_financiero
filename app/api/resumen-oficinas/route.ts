@@ -7,8 +7,9 @@
 //   Cobrado, Vencido
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeSP } from '@/lib/reco-api';
+import { executeSP, executeQueryWithRetry } from '@/lib/reco-api';
 import { OfficeSummaryData, OfficeSummary } from '@/types/dashboard';
+import { buildResumenOficinasQuery } from '@/lib/queries/resumen-oficinas';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,16 +26,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[RESUMEN-OFICINAS] EXEC sp_Resumen '${fechaCorte}', ${idEmpresa}`);
+    console.log(`[RESUMEN-OFICINAS] Using direct query via fn_CuentasPorCobrar_Excel for ${fechaCorte}, ${idEmpresa}`);
 
-    const result = await executeSP(
-      'sp_Resumen',
-      { FechaCorte: fechaCorte, IdEmpresa: idEmpresa },
-      { useCache: true, retries: 2 }
-    );
+    const sqlQuery = buildResumenOficinasQuery(fechaCorte, idEmpresa);
+
+    const result = await executeQueryWithRetry(sqlQuery);
 
     if (!result.success || !result.data) {
-      console.error('[RESUMEN-OFICINAS] Error del SP:', result.error);
+      console.error('[RESUMEN-OFICINAS] Error del Direct Query:', result.error);
 
       // Fallback vacío para no romper la UI
       const fallbackResponse: OfficeSummaryData = {
@@ -50,23 +49,24 @@ export async function GET(request: NextRequest) {
     }
 
     const rows: any[] = result.data;
-    console.log(`[RESUMEN-OFICINAS] ${rows.length} oficinas recibidas del SP`);
+    console.log(`[RESUMEN-OFICINAS] ${rows.length} oficinas recibidas del Query`);
 
-    // Mapear cada fila del SP a OfficeSummary
+    // Mapear cada fila a OfficeSummary
     const offices: OfficeSummary[] = rows
       .map((row: any, index: number): OfficeSummary => {
-        // El SP devuelve columnas con nombres de alias exactos
+        // Mapeo seguro a los nombres dados en el query AS [...]
         const r0130  = row['01-30']        ?? row['0130']        ?? 0;
-        const r3160  = row['31-60']        ?? row['3160']        ?? 0;
+        const r3145  = row['31-45']        ?? row['3145']        ?? 0;
+        const r4660  = row['46-60']        ?? row['4660']        ?? 0;
         const r6190  = row['61-90']        ?? row['6190']        ?? 0;
-        const r91120 = row['91-120']       ?? row['91120']       ?? 0;
-        const r121p  = row['121-500 Dias'] ?? row['121500Dias']  ?? 0;
+        const r91120 = row['91-120']       ?? row['91120']       ?? row['91'] ?? 0;
+        const r121p  = row['121-500 Dias'] ?? row['121500Dias']  ?? row['121'] ?? 0;
         const total  = row['Total']        ?? row['total']       ?? 0;
         const dac    = row['Saldo DAC']    ?? row['SaldoDAC']    ?? 0;
         const cli    = row['Saldos Clientes'] ?? row['SaldosClientes'] ?? 0;
         const cob    = row['Cobrado']      ?? row['cobrado']     ?? 0;
         const vec    = row['Vencido']      ?? row['vencido']     ?? 0;
-        const fact   = row['Fact']         ?? row['fact']        ?? 0;
+        const fact   = row['Fact']         ?? row['fact']        ?? row['facturas'] ?? 0;
 
         const oficina = (row['Oficina'] ?? row['oficina'] ?? row['NombreSucursal'] ?? `Oficina ${index + 1}`).toString().trim();
 
@@ -75,8 +75,8 @@ export async function GET(request: NextRequest) {
           name:         oficina,
           invoiceCount: typeof fact === 'number' ? fact : parseInt(String(fact)) || 0,
           range01to30:  Math.round(r0130  * 100) / 100,
-          range31to45:  0, // SP no tiene este rango; se conserva para compatibilidad UI
-          range46to60:  Math.round(r3160  * 100) / 100, // proxy 31-60 → 46-60
+          range31to45:  Math.round(r3145  * 100) / 100,
+          range46to60:  Math.round(r4660  * 100) / 100,
           range61to90:  Math.round(r6190  * 100) / 100,
           range91plus:  Math.round((r91120 + r121p) * 100) / 100,
           total:        Math.round(total  * 100) / 100,
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       name:         'TOTALES',
       invoiceCount:  offices.reduce((s, o) => s + o.invoiceCount,  0),
       range01to30:   Math.round(offices.reduce((s, o) => s + o.range01to30,  0) * 100) / 100,
-      range31to45:   0,
+      range31to45:   Math.round(offices.reduce((s, o) => s + o.range31to45,  0) * 100) / 100,
       range46to60:   Math.round(offices.reduce((s, o) => s + o.range46to60,  0) * 100) / 100,
       range61to90:   Math.round(offices.reduce((s, o) => s + o.range61to90,  0) * 100) / 100,
       range91plus:   Math.round(offices.reduce((s, o) => s + o.range91plus,  0) * 100) / 100,

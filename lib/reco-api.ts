@@ -70,8 +70,8 @@ function isSafeQuery(query: string): boolean {
   const upperQuery = query.toUpperCase().trim();
   const forbiddenWords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'MERGE', 'CALL', 'CREATE'];
   
-  // Debe comenzar con SELECT, WITH, EXEC o DECLARE (queries directas con variables)
-  const hasValidStart = upperQuery.startsWith('SELECT') || upperQuery.startsWith('WITH') || upperQuery.startsWith('EXEC') || upperQuery.startsWith('DECLARE');
+  // Debe comenzar con SELECT, WITH o EXEC (stored procedures permitidos)
+  const hasValidStart = upperQuery.startsWith('SELECT') || upperQuery.startsWith('WITH') || upperQuery.startsWith('EXEC');
   if (!hasValidStart) return false;
   
   // No debe contener palabras prohibidas que modifiquen datos

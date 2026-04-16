@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, Users } from 'lucide-react';
 import { AgingData, AgingBucket, AgingDetail, AgingRange } from '@/types/dashboard';
 import { formatCurrency, formatPercentage } from '@/lib/utils/formatters';
 import { agingRiskColors, getAgingColor, chartColors } from '@/lib/utils/colors';
@@ -206,9 +206,10 @@ export function AgingAnalysis({
         <div className="mt-4 pt-4 border-t border-outline-variant mx-3 sm:mx-6">
           <button
             onClick={() => setShowDetail(!showDetail)}
-            className="px-4 py-2 bg-primary-container text-on-primary-container rounded-full text-xs sm:text-sm font-medium hover:bg-primary-container/80 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors"
           >
-            {showDetail ? 'Ocultar detalle por cliente' : 'Ver detalle por cliente'}
+            <Users className="w-4 h-4" />
+            {showDetail ? 'Ocultar Detalle' : 'Ver Detalle por Cliente'}
           </button>
 
           {showDetail && (

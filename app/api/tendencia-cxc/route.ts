@@ -6,9 +6,10 @@
 // Nota: Vigente = DiasTranscurridos < 1  (el SP no aplica días de crédito por cliente)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeSP } from '@/lib/reco-api';
+import { executeQueryWithRetry } from '@/lib/reco-api';
 import { PortfolioTrendData, MonthPortfolioData, PortfolioDetail } from '@/types/dashboard';
 import { formatMonthName } from '@/lib/utils/formatters';
+import { buildTendenciaCxcQuery } from '@/lib/queries/tendencia-cxc';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,16 +26,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[TENDENCIA-CXC] EXEC sp_Tendencia_cartera_CxC ${year}, ${idEmpresa}`);
+    console.log(`[TENDENCIA-CXC] Executing direct query for year ${year}, empresa ${idEmpresa}`);
 
-    const result = await executeSP(
-      'sp_Tendencia_cartera_CxC',
-      { Year: year, IdEmpresa: idEmpresa },
-      { useCache: false, retries: 2 }
+    const query = buildTendenciaCxcQuery(year, idEmpresa);
+    const result = await executeQueryWithRetry(
+      query,
+      { useCache: true, retries: 2 }
     );
 
     if (!result.success || !result.data) {
-      console.error('[TENDENCIA-CXC] Error del SP:', result.error);
+      console.error('[TENDENCIA-CXC] Error de la query directa:', result.error);
       return NextResponse.json(
         { error: 'Error al obtener datos de la base de datos' },
         { status: 500 }
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rows: any[] = result.data;
-    console.log(`[TENDENCIA-CXC] ${rows.length} filas recibidas del SP`);
+    console.log(`[TENDENCIA-CXC] ${rows.length} filas recibidas de la query directa`);
 
     // Determinar meses disponibles
     const today = new Date();
