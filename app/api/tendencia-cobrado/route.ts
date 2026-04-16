@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
 
     // Dos llamadas paralelas: año actual y año anterior
     const [currentResult, previousResult] = await Promise.all([
-      executeSP('sp_Tendencia_Cobrado', [year, idEmpresa], { useCache: false, retries: 2 }),
-      executeSP('sp_Tendencia_Cobrado', [year - 1, idEmpresa], { useCache: true, retries: 2 }),
+      executeSP('sp_Tendencia_Cobrado', { Year: year, IdEmpresa: idEmpresa }, { useCache: false, retries: 2 }),
+      executeSP('sp_Tendencia_Cobrado', { Year: year - 1, IdEmpresa: idEmpresa }, { useCache: true, retries: 2 }),
     ]);
 
     const currentRows = currentResult.success ? (currentResult.data || []) : [];

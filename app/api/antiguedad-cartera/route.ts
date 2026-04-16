@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const result = await executeSP(
       'sp_Antiguedad_cartera',
-      [fechaCorte, idEmpresa],
+      { FechaCorte: fechaCorte, IdEmpresa: idEmpresa },
       { useCache: true, retries: 2 }
     );
 

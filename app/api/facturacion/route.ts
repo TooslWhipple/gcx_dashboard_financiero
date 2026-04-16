@@ -24,7 +24,7 @@ async function getMensualData(year: number, idEmpresa: number) {
 
   const result = await executeSP(
     'sp_Facturacion',
-    [year, idEmpresa],
+    { Year: year, IdEmpresa: idEmpresa },
     { useCache: true, retries: 2 }
   );
 

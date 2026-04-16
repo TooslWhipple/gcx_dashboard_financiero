@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     const result = await executeSP(
       'sp_Estatus_Garantia',
-      [year, idEmpresa],
+      { Year: year, IdEmpresa: idEmpresa },
       { useCache: true, retries: 1 }
     );
 

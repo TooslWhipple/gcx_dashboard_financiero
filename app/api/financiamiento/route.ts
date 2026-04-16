@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const result = await executeSP(
       'sp_Tendencia_Financiamiento',
-      [year, idEmpresa],
+      { Year: year, IdEmpresa: idEmpresa },
       { useCache: true, retries: 2 }
     );
 

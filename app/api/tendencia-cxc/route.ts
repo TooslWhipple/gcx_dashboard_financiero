@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const result = await executeSP(
       'sp_Tendencia_cartera_CxC',
-      [year, idEmpresa],
+      { Year: year, IdEmpresa: idEmpresa },
       { useCache: false, retries: 2 }
     );
 

@@ -21,7 +21,7 @@ async function getRecoveredData(year: number, idEmpresa: number): Promise<Monthl
 
   const result = await executeSP(
     'sp_Estatus_Garantia',
-    [year, idEmpresa],
+    { Year: year, IdEmpresa: idEmpresa },
     { useCache: true, retries: 2 }
   );
 
