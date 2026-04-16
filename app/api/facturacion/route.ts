@@ -131,30 +131,42 @@ async function getMensualData(year: number, idEmpresa: number) {
 // ─── VISTA SEMANAL (query directa a fn_Facturacion) ───────────────────────
 
 async function getSemanalData(year: number, idEmpresa: number) {
-  // fn_Facturacion(@FechaIni, @FechaFin, @IdEmpresa)
-  // Columnas útiles: Unidad, Oficina, Honorarios_ImpMB, Complementarios_ImpMB,
-  //                  TotalMB, PagosHechosMB, TotalFacturaME
-  const fechaIni = `${year}-01-01`;
-  const fechaFin = `${year}-12-31`;
+  const monthPromises = [];
+  for (let m = 1; m <= 12; m++) {
+    const startDate = new Date(year, m - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, m, 0).toISOString().split('T')[0];
+    
+    // Consultamos fn_Facturacion mes a mes limitando carga, pero agrupando por SEMANA
+    const query = `
+      SELECT
+        Unidad,
+        Oficina,
+        DATEPART(WEEK, Fecha) AS Semana,
+        SUM(Honorarios_ImpMB)      AS Honorarios,
+        SUM(Complementarios_ImpMB) AS OtrosIngresos,
+        SUM(TotalMB)               AS Total,
+        SUM(PagosHechosMB)         AS PagosHechos
+      FROM dbo.fn_Facturacion('${startDate}', '${endDate}', ${idEmpresa})
+      GROUP BY Unidad, Oficina, DATEPART(WEEK, Fecha)
+    `;
+    monthPromises.push(executeQueryWithRetry(query.trim(), { useCache: true, retries: 2 }));
+  }
 
-  const query = `
-    SELECT
-      Unidad,
-      Oficina,
-      DATEPART(WEEK, FechaFactura) AS Semana,
-      SUM(Honorarios_ImpMB)      AS Honorarios,
-      SUM(Complementarios_ImpMB) AS OtrosIngresos,
-      SUM(TotalMB)               AS Total,
-      SUM(PagosHechosMB)         AS PagosHechos
-    FROM dbo.fn_Facturacion('${fechaIni}', '${fechaFin}', ${idEmpresa})
-    GROUP BY Unidad, Oficina, DATEPART(WEEK, FechaFactura)
-    ORDER BY Semana, Oficina
-  `;
+  console.log(`[FACTURACION-SEMANAL] Emitiendo 12 queries fragmentados para evaluar semanas en ${year}`);
+  const results = await Promise.all(monthPromises);
+  
+  const rows: any[] = [];
+  let debugError = null;
+  for (const res of results) {
+    if (res.success && res.data) {
+      rows.push(...res.data);
+    } else if (!res.success) {
+      console.error('[FACTURACION-SEMANAL] ERROR DE CHUNK:', res.error);
+      debugError = res.error;
+    }
+  }
 
-  console.log(`[FACTURACION-SEMANAL] Query fn_Facturacion ${year}, agrupada por semana`);
-  const result = await executeQueryWithRetry(query, { useCache: true, retries: 2 });
-  const rows: any[] = result.success ? (result.data || []) : [];
-  console.log(`[FACTURACION-SEMANAL] ${rows.length} filas`);
+  console.log(`[FACTURACION-SEMANAL] ${rows.length} filas combinadas`);
 
   // Agrupar por semana (global)
   const weekMap = new Map<number, { honorarios: number; otros: number; total: number }>();
@@ -234,8 +246,11 @@ async function getSemanalData(year: number, idEmpresa: number) {
       totalOtros:     Math.round(tO * 100) / 100,
     });
   }
-
-  return { aduanas, months: weeklyData.map(w => w.monthName) };
+  let __debug_error = null;
+  if(debugError){
+     __debug_error = debugError;
+  }
+  return { aduanas, months: weeklyData.map(w => w.monthName), __debug_error };
 }
 
 // ─── HANDLER PRINCIPAL ─────────────────────────────────────────────────────

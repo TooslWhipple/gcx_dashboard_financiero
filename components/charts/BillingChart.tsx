@@ -155,7 +155,6 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Honorarios</th>
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Resto</th>
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Promedio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -173,9 +172,6 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                     <td className="px-3 py-1.5 text-right font-mono font-semibold whitespace-nowrap">
                       {m.total > 0 ? formatCurrency(m.total) : '—'}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-muted-foreground whitespace-nowrap">
-                      {m.total > 0 ? formatCurrency(promedioSemanal) : '—'}
-                    </td>
                   </tr>
                 ))}
                 {/* Fila totales */}
@@ -184,7 +180,6 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                   <td className="px-3 py-2 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalHonorarios)}</td>
                   <td className="px-3 py-2 text-right font-mono text-orange-700 whitespace-nowrap">{formatCurrency(totalOtros)}</td>
                   <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{formatCurrency(totalGeneral)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-muted-foreground whitespace-nowrap">{formatCurrency(promedioSemanal)}</td>
                 </tr>
               </tbody>
             </table>
@@ -202,7 +197,6 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Honorarios</th>
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Resto</th>
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Promedio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -220,9 +214,6 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                     <td className="px-3 py-1.5 text-right font-mono font-semibold whitespace-nowrap">
                       {m.total > 0 ? formatCurrency(m.total) : '—'}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-muted-foreground whitespace-nowrap">
-                      {m.total > 0 ? formatCurrency(promedioMensual) : '—'}
-                    </td>
                   </tr>
                 ))}
                 {/* Fila totales */}
@@ -231,7 +222,6 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                   <td className="px-3 py-2 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalHonorarios)}</td>
                   <td className="px-3 py-2 text-right font-mono text-orange-700 whitespace-nowrap">{formatCurrency(totalOtros)}</td>
                   <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{formatCurrency(totalGeneral)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-muted-foreground whitespace-nowrap">{formatCurrency(promedioMensual)}</td>
                 </tr>
               </tbody>
             </table>
@@ -277,7 +267,7 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
         </div>
 
         {/* ── Resumen inferior ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-outline-variant mx-2 sm:mx-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-outline-variant mx-2 sm:mx-4">
           <div className="text-center p-3 rounded-lg bg-blue-50">
             <p className="text-xs text-blue-700 font-medium">Total Honorarios</p>
             <p className="text-sm sm:text-base text-blue-900 font-semibold">{formatCurrency(totalHonorarios)}</p>
@@ -289,6 +279,10 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
           <div className="text-center p-3 rounded-lg bg-gray-50">
             <p className="text-xs text-gray-600 font-medium">Promedio Semanal</p>
             <p className="text-sm sm:text-base text-gray-900 font-semibold">{formatCurrency(promedioSemanal)}</p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-green-50">
+            <p className="text-xs text-green-700 font-medium">Promedio Mensual</p>
+            <p className="text-sm sm:text-base text-green-900 font-semibold">{formatCurrency(promedioMensual)}</p>
           </div>
         </div>
       </CardContent>
