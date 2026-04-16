@@ -1,18 +1,19 @@
 // app/api/antiguedad-cartera/route.ts
 // API Route para US-002: Antigüedad de Cartera con rangos exactos
 // GET /api/antiguedad-cartera?fechaCorte=2024-01-31&idEmpresa=1
-// Fuente: EXEC dbo.[sp_Antiguedad_cartera] @FechaCorte, @IdEmpresa
-// SP devuelve (por cliente): B(Nombre), C(RFC), Vigente, [01-30], [31-60],
+// Fuente: Query directa con CTEs de MovimientosSaldo (reemplaza sp_Antiguedad_cartera)
+// Query devuelve (por cliente): B(Nombre), C(RFC), Vigente, [01-30], [31-60],
 //   [61-90], [91-120], [121-500 Dias], CO(Total), NombreSucursal
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeSP } from '@/lib/reco-api';
+import { executeQueryWithRetry } from '@/lib/reco-api';
 import { AgingData, AgingBucket, AgingDetail, AgingRange } from '@/types/dashboard';
 import { agingRiskColors } from '@/lib/utils/colors';
+import { buildAntiguedadCarteraQuery } from '@/lib/queries/antiguedad-cartera';
 
 export const dynamic = 'force-dynamic';
 
-// Rangos que expone el SP — coinciden con las columnas que devuelve
+// Rangos que expone la query — coinciden con las columnas que devuelve
 const AGING_RANGES: { range: AgingRange; col: string }[] = [
   { range: '1-30',     col: '01-30' },
   { range: '31-60',   col: '31-60' },
@@ -34,16 +35,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[ANTIGUEDAD-CARTERA] EXEC sp_Antiguedad_cartera '${fechaCorte}', ${idEmpresa}`);
+    // Construir query directa (reemplaza EXEC sp_Antiguedad_cartera)
+    const query = buildAntiguedadCarteraQuery(fechaCorte, idEmpresa);
+    console.log(`[ANTIGUEDAD-CARTERA] Query directa fechaCorte='${fechaCorte}', empresa=${idEmpresa}`);
 
-    const result = await executeSP(
-      'sp_Antiguedad_cartera',
-      { FechaCorte: fechaCorte, IdEmpresa: idEmpresa },
+    const result = await executeQueryWithRetry(
+      query,
       { useCache: true, retries: 2 }
     );
 
     if (!result.success || !result.data) {
-      console.error('[ANTIGUEDAD-CARTERA] Error del SP:', result.error);
+      console.error('[ANTIGUEDAD-CARTERA] Error de la query:', result.error);
 
       // Fallback vacío para no romper la UI
       const fallbackResponse: AgingData = {
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rows: any[] = result.data;
-    console.log(`[ANTIGUEDAD-CARTERA] ${rows.length} clientes recibidos del SP`);
+    console.log(`[ANTIGUEDAD-CARTERA] ${rows.length} clientes recibidos de la query`);
 
     // ─── Gráfica por rangos ─────────────────────────────────────────────────
     // Sumar todas las filas (clientes) por rango
@@ -108,7 +110,7 @@ export async function GET(request: NextRequest) {
     const summary = {
       totalAmount:  Math.round(grandTotal * 100) / 100,
       totalClients: rows.length,
-      averageDays:  0, // SP no devuelve días promedio directamente
+      averageDays:  0, // La query no devuelve días promedio directamente
     };
 
     const response: AgingData = { chartData, tableData, summary };

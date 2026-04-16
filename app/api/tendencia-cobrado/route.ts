@@ -1,27 +1,28 @@
 // app/api/tendencia-cobrado/route.ts
 // API Route para US-001: Tendencia Cobrado con comparativo año pasado
 // GET /api/tendencia-cobrado?year=2026&idEmpresa=1
-// Fuente: EXEC dbo.[sp_Tendencia_Cobrado] @Year, @IdEmpresa
-// SP devuelve: nIdCtaGastos15, nIdEmp11, nIdSuc12, Sucursal, Factura,
-//              FechaFactura, ClaveCliente, RFCCliente, Cliente,
-//              ClaveClienteFacturarA, RFCClienteFacturarA, ClienteFacturarA,
-//              FechaPago, GastosME_Cob, IngresosME_Cob, TotalCobrado
+// Fuente: Query directa con CROSS APPLY a fn_CGA_Cobrados (reemplaza sp_Tendencia_Cobrado)
+// Query devuelve: nIdCtaGastos15, nIdEmp11, nIdSuc12, Sucursal, Factura,
+//                 FechaFactura, ClaveCliente, RFCCliente, Cliente,
+//                 ClaveClienteFacturarA, RFCClienteFacturarA, ClienteFacturarA,
+//                 FechaPago, GastosME_Cob, IngresosME_Cob, TotalCobrado
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeSP } from '@/lib/reco-api';
+import { executeQueryWithRetry } from '@/lib/reco-api';
 import { CollectionTrendData, MonthlyCollectionData } from '@/types/dashboard';
 import { formatMonthName } from '@/lib/utils/formatters';
+import { buildTendenciaCobradoQuery } from '@/lib/queries/tendencia-cobrado';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Agrega filas del SP por mes usando FechaPago.
- * Retorna array de 12 meses (o hasta el mes actual si es el año en curso).
+ * Agrega filas de la query por mes usando FechaPago.
  */
 function buildMonthlyTrend(rows: any[], year: number): MonthlyCollectionData[] {
+  const maxMonth = 12; // Siempre devolvemos los 12 meses para que la gráfica pinte todo el eje X
   const today = new Date();
   const isCurrentYear = year === today.getFullYear();
-  const maxMonth = isCurrentYear ? today.getMonth() + 1 : 12;
+  const currentMonth = today.getMonth() + 1;
 
   // Inicializar todos los meses en 0
   const monthMap = new Map<number, { totalCollected: number; invoiceCount: number }>();
@@ -33,6 +34,10 @@ function buildMonthlyTrend(rows: any[], year: number): MonthlyCollectionData[] {
     const fechaPago: string = row.FechaPago || row.fechapago || '';
     if (!fechaPago) continue;
     const mes = new Date(fechaPago).getMonth() + 1; // 1-based
+    
+    // Ignorar datos futuros (ej. si hay errores en la BD con pagos en diciembre 2026 pero estamos en abril)
+    if (isCurrentYear && mes > currentMonth) continue;
+    
     if (mes < 1 || mes > maxMonth) continue;
 
     const total = (row.TotalCobrado ?? row.totalcobrado ?? 0) as number;
@@ -68,13 +73,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[TENDENCIA-COBRADO] EXEC sp_Tendencia_Cobrado ${year}, ${idEmpresa}`);
-    console.log(`[TENDENCIA-COBRADO] EXEC sp_Tendencia_Cobrado ${year - 1}, ${idEmpresa}`);
+    // Construir queries directas (reemplaza EXEC sp_Tendencia_Cobrado)
+    const currentQuery = buildTendenciaCobradoQuery(year, idEmpresa);
+    const previousQuery = buildTendenciaCobradoQuery(year - 1, idEmpresa);
+
+    console.log(`[TENDENCIA-COBRADO] Query directa año ${year}, empresa ${idEmpresa}`);
+    console.log(`[TENDENCIA-COBRADO] Query directa año ${year - 1}, empresa ${idEmpresa}`);
 
     // Dos llamadas paralelas: año actual y año anterior
     const [currentResult, previousResult] = await Promise.all([
-      executeSP('sp_Tendencia_Cobrado', { Year: year, IdEmpresa: idEmpresa }, { useCache: false, retries: 2 }),
-      executeSP('sp_Tendencia_Cobrado', { Year: year - 1, IdEmpresa: idEmpresa }, { useCache: true, retries: 2 }),
+      executeQueryWithRetry(currentQuery, { useCache: false, retries: 2 }),
+      executeQueryWithRetry(previousQuery, { useCache: true, retries: 2 }),
     ]);
 
     const currentRows = currentResult.success ? (currentResult.data || []) : [];
