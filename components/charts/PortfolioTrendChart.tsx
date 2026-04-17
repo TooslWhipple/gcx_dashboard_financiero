@@ -1,7 +1,7 @@
 'use client';
 
 // components/charts/PortfolioTrendChart.tsx
-// US-003: Tendencia Cartera CXC (Vencido vs En tiempo)
+// US-003: Tendencia Cartera CXC (Vencido vs Corriente)
 // Material Design 3 Stacked Bar Chart implementation
 
 import { useState } from 'react';
@@ -17,7 +17,7 @@ import {
   TooltipProps,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { BarChart3, AlertCircle, CheckCircle2, Users } from 'lucide-react';
 import { PortfolioTrendData, MonthPortfolioData } from '@/types/dashboard';
 import { formatCurrency, formatPercentage, formatMonthNameShort } from '@/lib/utils/formatters';
 import { trendSeriesColors, chartAxisColors } from '@/lib/utils/colors';
@@ -74,21 +74,21 @@ export function PortfolioTrendChart({
           <p className="text-title-small text-on-surface mb-2">
             {formatMonthNameShort(monthIndex)}
           </p>
+          {onTime && (
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.corriente }} />
+              <span className="text-body-medium text-on-surface-variant">Corriente:</span>
+              <span className="text-body-medium text-on-surface font-medium">
+                {formatCurrency(Number(onTime.value))}
+              </span>
+            </div>
+          )}
           {overdue && (
             <div className="flex items-center gap-2 mb-1">
               <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.vencido }} />
               <span className="text-body-medium text-on-surface-variant">Vencido:</span>
               <span className="text-body-medium text-on-surface font-medium">
                 {formatCurrency(Number(overdue.value))}
-              </span>
-            </div>
-          )}
-          {onTime && (
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.enTiempo }} />
-              <span className="text-body-medium text-on-surface-variant">En tiempo:</span>
-              <span className="text-body-medium text-on-surface font-medium">
-                {formatCurrency(Number(onTime.value))}
               </span>
             </div>
           )}
@@ -116,12 +116,11 @@ export function PortfolioTrendChart({
 
   // Table columns
   const columns = [
-    { key: 'clientName', label: 'Cliente', sortable: true, width: '25%' },
-    { key: 'rfc', label: 'RFC', sortable: true, width: '15%' },
-    { key: 'onTime', label: 'En Tiempo', sortable: true, align: 'right' as const, format: 'currency' as const, width: '15%' },
+    { key: 'clientName', label: 'Cliente', sortable: true, width: '35%' },
+    { key: 'rfc', label: 'RFC', sortable: true, width: '20%' },
+    { key: 'onTime', label: 'Corriente', sortable: true, align: 'right' as const, format: 'currency' as const, width: '15%' },
     { key: 'overdue', label: 'Vencido', sortable: true, align: 'right' as const, format: 'currency' as const, width: '15%' },
     { key: 'total', label: 'Total', sortable: true, align: 'right' as const, format: 'currency' as const, width: '15%' },
-    { key: 'branch', label: 'Sucursal', sortable: true, width: '15%' },
   ];
 
   return (
@@ -177,12 +176,12 @@ export function PortfolioTrendChart({
         {/* Leyenda de colores */}
         <div className="flex flex-wrap gap-3 px-3 sm:px-6 pt-2 mb-2 text-xs text-on-surface-variant">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.vencido }} />
-            Azul: Vencido (parte inferior)
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.corriente }} />
+            Azul: Corriente (parte inferior)
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.enTiempo }} />
-            Naranja: En Tiempo (parte superior)
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: trendSeriesColors.vencido }} />
+            Amarillo: Vencido (parte superior)
           </span>
           <span className="text-muted-foreground">Periodicidad: Mensual</span>
         </div>
@@ -196,8 +195,8 @@ export function PortfolioTrendChart({
               <thead>
                 <tr className="bg-blue-700 text-white">
                   <th className="text-left px-3 py-2 sm:px-4 sm:py-3 font-semibold sticky left-0 bg-blue-700 z-10">Mes</th>
+                  <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Corriente</th>
                   <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Vencido</th>
-                  <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">En Tiempo</th>
                   <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap">Total</th>
                   <th className="text-right px-3 py-2 sm:px-4 sm:py-3 font-semibold">%</th>
                 </tr>
@@ -209,10 +208,10 @@ export function PortfolioTrendChart({
                       {m.monthName}
                     </td>
                     <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono whitespace-nowrap text-blue-700">
-                      {m.overdue > 0 ? formatCurrency(m.overdue) : '—'}
-                    </td>
-                    <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono whitespace-nowrap text-orange-700">
                       {m.onTime > 0 ? formatCurrency(m.onTime) : '—'}
+                    </td>
+                    <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono whitespace-nowrap text-red-600">
+                      {m.overdue > 0 ? formatCurrency(m.overdue) : '—'}
                     </td>
                     <td className="px-3 py-1.5 sm:px-4 sm:py-2 text-right font-mono font-semibold whitespace-nowrap">
                       {m.total > 0 ? formatCurrency(m.total) : '—'}
@@ -227,8 +226,8 @@ export function PortfolioTrendChart({
                 {/* Fila totales */}
                 <tr className="bg-blue-50 font-bold border-t-2 border-blue-300">
                   <td className="px-3 py-2 sm:px-4 sticky left-0 bg-blue-50 z-10">Total</td>
-                  <td className="px-3 py-2 sm:px-4 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalOverdue)}</td>
-                  <td className="px-3 py-2 sm:px-4 text-right font-mono text-orange-700 whitespace-nowrap">{formatCurrency(totalPortfolio - totalOverdue)}</td>
+                  <td className="px-3 py-2 sm:px-4 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalPortfolio - totalOverdue)}</td>
+                  <td className="px-3 py-2 sm:px-4 text-right font-mono text-red-600 whitespace-nowrap">{formatCurrency(totalOverdue)}</td>
                   <td className="px-3 py-2 sm:px-4 text-right font-mono whitespace-nowrap">{formatCurrency(totalPortfolio)}</td>
                   <td className={`px-3 py-2 sm:px-4 text-right font-bold ${
                     avgOverduePercentage > 20 ? 'text-red-600' : 'text-green-600'
@@ -273,17 +272,17 @@ export function PortfolioTrendChart({
                   wrapperStyle={{ fontSize: '11px', paddingBottom: 6 }}
                 />
                 <Bar
+                  dataKey="onTime"
+                  name="Corriente"
+                  stackId="portfolio"
+                  fill={trendSeriesColors.corriente}
+                  radius={[0, 0, 3, 3]}
+                />
+                <Bar
                   dataKey="overdue"
                   name="Vencido"
                   stackId="portfolio"
                   fill={trendSeriesColors.vencido}
-                  radius={[0, 0, 3, 3]}
-                />
-                <Bar
-                  dataKey="onTime"
-                  name="En Tiempo"
-                  stackId="portfolio"
-                  fill={trendSeriesColors.enTiempo}
                   radius={[3, 3, 0, 0]}
                 />
               </BarChart>
@@ -295,8 +294,9 @@ export function PortfolioTrendChart({
         <div className="mt-4 pt-4 border-t border-outline-variant mx-2 sm:mx-4">
           <button
             onClick={() => setShowTable(!showTable)}
-            className="px-4 py-2 bg-primary-container text-on-primary-container rounded-full text-xs sm:text-sm font-medium hover:bg-primary-container/80 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 shadow-sm transition-colors"
           >
+            <Users className="w-4 h-4" />
             {showTable ? 'Ocultar Detalle' : 'Ver Detalle por Cliente'}
           </button>
 
@@ -319,15 +319,15 @@ export function PortfolioTrendChart({
         {/* Summary Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-outline-variant mx-2 sm:mx-4">
           <div className="text-center p-3 rounded-lg bg-blue-50">
-            <p className="text-xs sm:text-label-medium text-blue-700">Total Vencido</p>
+            <p className="text-xs sm:text-label-medium text-blue-700">Total Corriente</p>
             <p className="text-sm sm:text-title-medium text-blue-900 font-semibold">
-              {formatCurrency(totalOverdue)}
+              {formatCurrency(totalPortfolio - totalOverdue)}
             </p>
           </div>
-          <div className="text-center p-3 rounded-lg bg-orange-50">
-            <p className="text-xs sm:text-label-medium text-orange-700">Total En Tiempo</p>
-            <p className="text-sm sm:text-title-medium text-orange-900 font-semibold">
-              {formatCurrency(totalPortfolio - totalOverdue)}
+          <div className="text-center p-3 rounded-lg bg-red-50">
+            <p className="text-xs sm:text-label-medium text-red-700">Total Vencido</p>
+            <p className="text-sm sm:text-title-medium text-red-900 font-semibold">
+              {formatCurrency(totalOverdue)}
             </p>
           </div>
           <div className="text-center p-3 rounded-lg bg-gray-50">

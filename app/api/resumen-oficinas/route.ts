@@ -1,32 +1,23 @@
 // app/api/resumen-oficinas/route.ts
 // API Route para US-006: Resumen Corporativo por Oficina
 // GET /api/resumen-oficinas?fechaCorte=2024-01-31&idEmpresa=1
-// Consulta directa a tablas base (~5s) — Eliminada fn_CuentasPorCobrar_Excel (timeout >30s)
+// Fuente: EXEC dbo.[sp_Resumen] @FechaCorte, @IdEmpresa
+// SP devuelve por oficina: Unidad, Oficina, Fact(count), [01-30], [31-60],
+//   [61-90], [91-120], [121-500 Dias], Total, [Saldo DAC], [Saldos Clientes],
+//   Cobrado, Vencido
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP, executeQueryWithRetry } from '@/lib/reco-api';
 import { OfficeSummaryData, OfficeSummary } from '@/types/dashboard';
+import { buildResumenOficinasQuery } from '@/lib/queries/resumen-oficinas';
 
 export const dynamic = 'force-dynamic';
-
-// Réplica de dbo.EsClienteInterno en JS
-const INTERNAL_RFCS = new Set([
-  'DAC911011F57', 'GCA960517MYA', 'GLE961217IC5',
-  'KSI980219699', 'UNI931215B65', 'SPC911017BQ1',
-]);
-
-function isInternalClient(rfc: string, nombre: string): boolean {
-  if (INTERNAL_RFCS.has(rfc)) return true;
-  if (nombre.startsWith('INTERCONTINENTAL FORWARDING')) return true;
-  if (nombre.startsWith('RED TOTAL')) return true;
-  return false;
-}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const fechaCorte = searchParams.get('fechaCorte') || new Date().toISOString().split('T')[0];
-    const idEmpresa = parseInt(searchParams.get('idEmpresa') || '1');
+    const idEmpresa  = parseInt(searchParams.get('idEmpresa') || '1');
 
     if (!fechaCorte || isNaN(idEmpresa)) {
       return NextResponse.json(
@@ -35,136 +26,90 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Consulta directa a tablas base (misma estrategia de US-002/003)
-    // Incluye NombreSucursal para agrupar por oficina
-    // DiasVencidos = DATEDIFF desde fecha+crédito hasta corte
-    const query = `
-      SELECT
-        ISNULL(s.Saldo, 0) AS Total,
-        DATEDIFF(DAY,
-          DATEADD(DAY,
-            CASE WHEN ISNULL(c.nDiasCred, 0) > 0 THEN c.nDiasCred ELSE 0 END,
-            cg.Fecha
-          ),
-          '${fechaCorte}'
-        ) AS Dias,
-        CASE WHEN cg.FacturarAidCliente > 0 THEN cg.FacturarARfcCliente ELSE c.sRFC END AS RFC,
-        CASE WHEN cg.FacturarAidCliente > 0 THEN cg.FacturarARazonSocialCliente ELSE c.sRazonSocial END AS RazonSocial,
-        cg.NombreSucursal AS Oficina
-      FROM admin.ADMIN_VT_CGastosCabecera cg
-      LEFT JOIN admin.ADMIN_VT_SaldoCGA s ON cg.IdCuentaGastos = s.nIdCtaGastos15
-      INNER JOIN Admin.ADMINC_07_CLIENTES c ON c.nIdClie07 = ISNULL(cg.FacturarAidCliente, cg.IdCliente)
-      WHERE cg.idEmpresa = ${idEmpresa}
-        AND cg.Estatus <> 1
-        AND ABS(ISNULL(s.Saldo, 0)) > 1
-        AND cg.Fecha < DATEADD(DD, 1, '${fechaCorte}')
-    `;
+    console.log(`[RESUMEN-OFICINAS] Using direct query via fn_CuentasPorCobrar_Excel for ${fechaCorte}, ${idEmpresa}`);
 
-    console.log(`[RESUMEN-OFICINAS] Query directa a tablas base`);
+    const sqlQuery = buildResumenOficinasQuery(fechaCorte, idEmpresa);
 
-    const result = await executeQueryWithRetry(query, { useCache: true, retries: 2 });
+    const result = await executeQueryWithRetry(sqlQuery);
 
     if (!result.success || !result.data) {
-      console.error('[RESUMEN-OFICINAS] Error:', result.error);
-      return NextResponse.json(
-        { error: 'Error al obtener datos de la base de datos' },
-        { status: 500 }
-      );
+      console.error('[RESUMEN-OFICINAS] Error del Direct Query:', result.error);
+
+      // Fallback vacío para no romper la UI
+      const fallbackResponse: OfficeSummaryData = {
+        offices: [],
+        totals: {
+          id: 'totals', name: 'TOTALES', invoiceCount: 0,
+          range01to30: 0, range31to45: 0, range46to60: 0,
+          range61to90: 0, range91plus: 0, total: 0,
+          dacBalance: 0, clientBalance: 0, collected: 0, overdue: 0,
+        },
+      };
+      return NextResponse.json(fallbackResponse);
     }
 
-    // Filtrar clientes internos en JS
-    const validData = result.data.filter((row: any) => {
-      const rfc = (row.RFC || '').trim();
-      const nombre = (row.RazonSocial || '').trim();
-      return !isInternalClient(rfc, nombre);
-    });
+    const rows: any[] = result.data;
+    console.log(`[RESUMEN-OFICINAS] ${rows.length} oficinas recibidas del Query`);
 
-    console.log(`[RESUMEN-OFICINAS] ${result.data.length} filas totales, ${validData.length} externas`);
+    // Mapear cada fila a OfficeSummary
+    const offices: OfficeSummary[] = rows
+      .map((row: any, index: number): OfficeSummary => {
+        // Mapeo seguro a los nombres dados en el query AS [...]
+        const r0130  = row['01-30']        ?? row['0130']        ?? 0;
+        const r3145  = row['31-45']        ?? row['3145']        ?? 0;
+        const r4660  = row['46-60']        ?? row['4660']        ?? 0;
+        const r6190  = row['61-90']        ?? row['6190']        ?? 0;
+        const r91120 = row['91-120']       ?? row['91120']       ?? row['91'] ?? 0;
+        const r121p  = row['121-500 Dias'] ?? row['121500Dias']  ?? row['121'] ?? 0;
+        const total  = row['Total']        ?? row['total']       ?? 0;
+        const dac    = row['Saldo DAC']    ?? row['SaldoDAC']    ?? 0;
+        const cli    = row['Saldos Clientes'] ?? row['SaldosClientes'] ?? 0;
+        const cob    = row['Cobrado']      ?? row['cobrado']     ?? 0;
+        const vec    = row['Vencido']      ?? row['vencido']     ?? 0;
+        const fact   = row['Fact']         ?? row['fact']        ?? row['facturas'] ?? 0;
 
-    // Agrupar por oficina (NombreSucursal)
-    const officeGroups = new Map<string, any[]>();
-    validData.forEach((item: any) => {
-      const officeKey = (item.Oficina || 'Sin Oficina').toString().trim();
-      if (!officeGroups.has(officeKey)) {
-        officeGroups.set(officeKey, []);
-      }
-      officeGroups.get(officeKey)!.push(item);
-    });
-
-    // Calcular métricas por oficina
-    const offices: OfficeSummary[] = Array.from(officeGroups.entries())
-      .map(([officeName, items], index) => {
-        const invoiceCount = items.length;
-
-        // Rangos de antigüedad: 01-30, 31-45, 46-60, 61-90, 91+
-        const range01to30 = items
-          .filter((item: any) => item.Dias >= 1 && item.Dias <= 30)
-          .reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
-        const range31to45 = items
-          .filter((item: any) => item.Dias >= 31 && item.Dias <= 45)
-          .reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
-        const range46to60 = items
-          .filter((item: any) => item.Dias >= 46 && item.Dias <= 60)
-          .reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
-        const range61to90 = items
-          .filter((item: any) => item.Dias >= 61 && item.Dias <= 90)
-          .reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
-        const range91plus = items
-          .filter((item: any) => item.Dias >= 91)
-          .reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
-
-        const total = items.reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
-        // Vencido = facturas donde Dias > 0 (vencidas según crédito del cliente)
-        const overdue = items
-          .filter((item: any) => item.Dias > 0)
-          .reduce((sum: number, item: any) => sum + (item.Total || 0), 0);
+        const oficina = (row['Oficina'] ?? row['oficina'] ?? row['NombreSucursal'] ?? `Oficina ${index + 1}`).toString().trim();
 
         return {
-          id: `office-${index}`,
-          name: officeName,
-          invoiceCount,
-          range01to30: Math.round(range01to30 * 100) / 100,
-          range31to45: Math.round(range31to45 * 100) / 100,
-          range46to60: Math.round(range46to60 * 100) / 100,
-          range61to90: Math.round(range61to90 * 100) / 100,
-          range91plus: Math.round(range91plus * 100) / 100,
-          total: Math.round(total * 100) / 100,
-          dacBalance: 0,
-          clientBalance: 0,
-          collected: 0,
-          overdue: Math.round(overdue * 100) / 100,
+          id:           `office-${index}`,
+          name:         oficina,
+          invoiceCount: typeof fact === 'number' ? fact : parseInt(String(fact)) || 0,
+          range01to30:  Math.round(r0130  * 100) / 100,
+          range31to45:  Math.round(r3145  * 100) / 100,
+          range46to60:  Math.round(r4660  * 100) / 100,
+          range61to90:  Math.round(r6190  * 100) / 100,
+          range91plus:  Math.round((r91120 + r121p) * 100) / 100,
+          total:        Math.round(total  * 100) / 100,
+          dacBalance:   Math.round(dac    * 100) / 100,
+          clientBalance:Math.round(cli    * 100) / 100,
+          collected:    Math.round(cob    * 100) / 100,
+          overdue:      Math.round(vec    * 100) / 100,
         };
       })
       .sort((a, b) => b.total - a.total);
 
     // Calcular totales
     const totals: OfficeSummary = {
-      id: 'totals',
-      name: 'TOTALES',
-      invoiceCount: offices.reduce((sum, o) => sum + o.invoiceCount, 0),
-      range01to30: Math.round(offices.reduce((sum, o) => sum + o.range01to30, 0) * 100) / 100,
-      range31to45: Math.round(offices.reduce((sum, o) => sum + o.range31to45, 0) * 100) / 100,
-      range46to60: Math.round(offices.reduce((sum, o) => sum + o.range46to60, 0) * 100) / 100,
-      range61to90: Math.round(offices.reduce((sum, o) => sum + o.range61to90, 0) * 100) / 100,
-      range91plus: Math.round(offices.reduce((sum, o) => sum + o.range91plus, 0) * 100) / 100,
-      total: Math.round(offices.reduce((sum, o) => sum + o.total, 0) * 100) / 100,
-      dacBalance: 0,
-      clientBalance: 0,
-      collected: 0,
-      overdue: Math.round(offices.reduce((sum, o) => sum + o.overdue, 0) * 100) / 100,
+      id:           'totals',
+      name:         'TOTALES',
+      invoiceCount:  offices.reduce((s, o) => s + o.invoiceCount,  0),
+      range01to30:   Math.round(offices.reduce((s, o) => s + o.range01to30,  0) * 100) / 100,
+      range31to45:   Math.round(offices.reduce((s, o) => s + o.range31to45,  0) * 100) / 100,
+      range46to60:   Math.round(offices.reduce((s, o) => s + o.range46to60,  0) * 100) / 100,
+      range61to90:   Math.round(offices.reduce((s, o) => s + o.range61to90,  0) * 100) / 100,
+      range91plus:   Math.round(offices.reduce((s, o) => s + o.range91plus,  0) * 100) / 100,
+      total:         Math.round(offices.reduce((s, o) => s + o.total,         0) * 100) / 100,
+      dacBalance:    Math.round(offices.reduce((s, o) => s + o.dacBalance,    0) * 100) / 100,
+      clientBalance: Math.round(offices.reduce((s, o) => s + o.clientBalance, 0) * 100) / 100,
+      collected:     Math.round(offices.reduce((s, o) => s + o.collected,     0) * 100) / 100,
+      overdue:       Math.round(offices.reduce((s, o) => s + o.overdue,       0) * 100) / 100,
     };
 
-    const response: OfficeSummaryData = {
-      offices,
-      totals,
-    };
-
+    const response: OfficeSummaryData = { offices, totals };
     return NextResponse.json(response);
+
   } catch (error) {
     console.error('Error en /api/resumen-oficinas:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

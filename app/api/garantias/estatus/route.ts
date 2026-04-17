@@ -1,12 +1,16 @@
 // app/api/garantias/estatus/route.ts
-// API Route para US-005: Estatus de Garantías
+// API Route para US-005: Estatus de Garantías por mes
 // GET /api/garantias/estatus?year=2026&idEmpresa=1
-// Fuente: fn_Garantias_Estatus(@FechaInicio DATE, @FechaCorte DATE, @IdEmpresa INT)
-// Columnas clave: EstatusGarantia (Programadas/Naviera/Operacion), Saldo, dDeposito
+// Fuente: EXEC dbo.[sp_Estatus_Garantia] @Year, @IdEmpresa
+// SP devuelve: Estatus (Programadas/Naviera/Operación/Recuperadas), ImporteMN, MES
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
-import { GuaranteeStatusData, GuaranteeStatusSummary, WeekGuaranteeData, GuaranteeStatus } from '@/types/dashboard';
+import { executeSP } from '@/lib/reco-api';
+import {
+  GuaranteeStatusData, GuaranteeStatusSummary,
+  WeekGuaranteeData, GuaranteeStatus,
+} from '@/types/dashboard';
+import { formatMonthName } from '@/lib/utils/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,25 +27,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const fechaInicio = `${year}-01-01`;
-    const fechaCorte = `${year}-12-31`;
+    console.log(`[GARANTIAS-ESTATUS] EXEC sp_Estatus_Garantia ${year}, ${idEmpresa}`);
 
-    // Query: fn_Garantias_Estatus con agrupación por semana del año y estatus
-    // DATEPART(WEEK, dDeposito) agrupa por semana calendario
-    const query = `
-      SELECT
-        EstatusGarantia AS Estatus,
-        DATEPART(WEEK, dDeposito) AS Semana,
-        SUM(Saldo) AS ImporteMN
-      FROM dbo.fn_Garantias_Estatus('${fechaInicio}', '${fechaCorte}', ${idEmpresa})
-      WHERE Saldo > 0
-      GROUP BY EstatusGarantia, DATEPART(WEEK, dDeposito)
-      ORDER BY Semana, EstatusGarantia
-    `;
-
-    console.log(`[GARANTIAS-ESTATUS] Query año ${year}:\n${query.trim()}`);
-
-    const result = await executeQueryWithRetry(query, { useCache: true, retries: 1 });
+    const result = await executeSP(
+      'sp_Estatus_Garantia',
+      { Year: year, IdEmpresa: idEmpresa },
+      { useCache: true, retries: 1 }
+    );
 
     if (!result.success || !result.data) {
       console.warn('[GARANTIAS-ESTATUS] Sin datos:', result.error);
@@ -50,73 +42,67 @@ export async function GET(request: NextRequest) {
     }
 
     const rawData: any[] = result.data;
+    console.log(`[GARANTIAS-ESTATUS] ${rawData.length} filas del SP`);
 
-    // Agrupar por semana
-    const weekMap = new Map<number, { scheduled: number; naviera: number; operation: number }>();
+    // Agrupar por MES (el SP devuelve MES numérico 1-12)
+    const today = new Date();
+    const maxMonth = year < today.getFullYear() ? 12 : today.getMonth() + 1;
+
+    const monthMap = new Map<number, {
+      scheduled: number; naviera: number; operation: number; recovered: number;
+    }>();
+    for (let m = 1; m <= maxMonth; m++) {
+      monthMap.set(m, { scheduled: 0, naviera: 0, operation: 0, recovered: 0 });
+    }
 
     rawData.forEach((row) => {
-      const semana = row.Semana || row.semana || 0;
-      const estatus: string = row.Estatus || '';
-      const importe = row.ImporteMN || 0;
+      const mes: number = row.MES ?? row.Mes ?? row.mes ?? 0;
+      if (mes < 1 || mes > maxMonth) return;
 
-      if (!weekMap.has(semana)) {
-        weekMap.set(semana, { scheduled: 0, naviera: 0, operation: 0 });
-      }
-      const entry = weekMap.get(semana)!;
+      const estatus: string = (row.Estatus ?? row.estatus ?? '').toString();
+      const importe: number  = row.ImporteMN ?? row.importemn ?? 0;
 
-      if (estatus === 'Programadas') entry.scheduled += importe;
-      else if (estatus === 'Naviera') entry.naviera += importe;
-      else if (estatus === 'Operacion') entry.operation += importe;
+      const entry = monthMap.get(mes)!;
+      if (estatus === 'Programadas')      entry.scheduled += importe;
+      else if (estatus === 'Naviera')     entry.naviera   += importe;
+      else if (estatus === 'Operación' || estatus === 'Operacion') entry.operation += importe;
+      else if (estatus === 'Recuperadas') entry.recovered += importe;
     });
 
-    // Construir array de semanas ordenado
-    const weeks: WeekGuaranteeData[] = Array.from(weekMap.entries())
+    // Construir semanas (meses) ordenados — la UI consume el tipo WeekGuaranteeData
+    const weeks: WeekGuaranteeData[] = Array.from(monthMap.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([weekNumber, data]) => ({
-        weekNumber,
-        weekLabel: `Sem.${weekNumber}`,
-        scheduled: Math.round(data.scheduled * 100) / 100,
-        naviera: Math.round(data.naviera * 100) / 100,
-        operation: Math.round(data.operation * 100) / 100,
-        total: Math.round((data.scheduled + data.naviera + data.operation) * 100) / 100,
+      .map(([mes, data]) => ({
+        weekNumber: mes,
+        weekLabel:  formatMonthName(mes),
+        scheduled:  Math.round(data.scheduled * 100) / 100,
+        naviera:    Math.round(data.naviera   * 100) / 100,
+        operation:  Math.round(data.operation * 100) / 100,
+        recovered:  Math.round(data.recovered * 100) / 100,
+        total:      Math.round((data.scheduled + data.naviera + data.operation + data.recovered) * 100) / 100,
       }));
 
-    // Calcular resumen total por estatus
+    // Totales por estatus
     const totalScheduled = weeks.reduce((s, w) => s + w.scheduled, 0);
-    const totalNaviera = weeks.reduce((s, w) => s + w.naviera, 0);
+    const totalNaviera   = weeks.reduce((s, w) => s + w.naviera,   0);
     const totalOperation = weeks.reduce((s, w) => s + w.operation, 0);
-    const grandTotal = totalScheduled + totalNaviera + totalOperation;
+    const totalRecovered = weeks.reduce((s, w) => s + w.recovered, 0);
+    const grandTotal     = totalScheduled + totalNaviera + totalOperation + totalRecovered;
+
+    const pct = (v: number) => grandTotal > 0 ? Math.round((v / grandTotal) * 10000) / 100 : 0;
 
     const summary: GuaranteeStatusSummary[] = [
-      {
-        status: 'Programadas' as GuaranteeStatus,
-        amount: Math.round(totalScheduled * 100) / 100,
-        percentage: grandTotal > 0 ? Math.round((totalScheduled / grandTotal) * 10000) / 100 : 0,
-      },
-      {
-        status: 'Naviera' as GuaranteeStatus,
-        amount: Math.round(totalNaviera * 100) / 100,
-        percentage: grandTotal > 0 ? Math.round((totalNaviera / grandTotal) * 10000) / 100 : 0,
-      },
-      {
-        status: 'Operacion' as GuaranteeStatus,
-        amount: Math.round(totalOperation * 100) / 100,
-        percentage: grandTotal > 0 ? Math.round((totalOperation / grandTotal) * 10000) / 100 : 0,
-      },
+      { status: 'Programadas' as GuaranteeStatus, amount: Math.round(totalScheduled * 100) / 100, percentage: pct(totalScheduled) },
+      { status: 'Naviera'     as GuaranteeStatus, amount: Math.round(totalNaviera   * 100) / 100, percentage: pct(totalNaviera)   },
+      { status: 'Operación'   as GuaranteeStatus, amount: Math.round(totalOperation * 100) / 100, percentage: pct(totalOperation) },
+      { status: 'Recuperadas' as GuaranteeStatus, amount: Math.round(totalRecovered * 100) / 100, percentage: pct(totalRecovered) },
     ];
 
-    const response: GuaranteeStatusData = {
-      summary,
-      weeks,
-      chartData: weeks,
-    };
-
+    const response: GuaranteeStatusData = { summary, weeks, chartData: weeks };
     return NextResponse.json(response);
+
   } catch (error) {
     console.error('Error en /api/garantias/estatus:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }

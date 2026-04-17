@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { GuaranteeStatusChart } from '@/components/charts/GuaranteeStatusChart';
 import { GuaranteeTrendChart } from '@/components/charts/GuaranteeTrendChart';
 import { GuaranteeAgingChart } from '@/components/charts/GuaranteeAgingChart';
-import { useGuaranteeStatus, useGuaranteeTrend, useGuaranteeAging } from '@/hooks';
+import { RecoveredTrendChart } from '@/components/charts/RecoveredTrendChart';
+import { useGuaranteeStatus, useGuaranteeTrend, useGuaranteeAging, useRecoveredTrend } from '@/hooks';
 
 function LoadingState({ message }: { message: string }) {
   return (
@@ -33,6 +34,12 @@ export function GarantiasOverview() {
 
   // US-005: Estatus de Garantías (fn_Garantias_Estatus)
   const { data: statusData, isLoading: isLoadingStatus, isError: isErrorStatus } = useGuaranteeStatus({
+    year: selectedYear,
+    idEmpresa: 1,
+  });
+
+  // US-005: Tendencia Recuperadas
+  const { data: recoveredData, isLoading: isLoadingRecovered, isError: isErrorRecovered } = useRecoveredTrend({
     year: selectedYear,
     idEmpresa: 1,
   });
@@ -75,6 +82,19 @@ export function GarantiasOverview() {
           <GuaranteeStatusChart data={statusData} year={selectedYear} />
         ) : (
           <LoadingState message="Sin datos de estatus de garantías disponibles." />
+        )}
+      </section>
+
+      {/* Tendencia Recuperadas (Nueva Tabla) */}
+      <section>
+        {isLoadingRecovered ? (
+          <LoadingState message="Cargando tendencia de garantías recuperadas..." />
+        ) : isErrorRecovered ? (
+          <ErrorState message="Error al cargar tendencia de garantías recuperadas." />
+        ) : recoveredData ? (
+          <RecoveredTrendChart data={recoveredData} year={selectedYear} />
+        ) : (
+          <LoadingState message="Sin datos de recuperación disponibles." />
         )}
       </section>
 

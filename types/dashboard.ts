@@ -79,7 +79,6 @@ export interface PortfolioDetail {
   onTime: number;
   overdue: number;
   total: number;
-  branch: string;
   month: number;
 }
 
@@ -100,6 +99,7 @@ export interface MonthFinancingData {
   monthName: string;
   pendingInvoice: number; // FinanciadoPTE - Por facturar
   invoiced: number;       // FinanciadoFAC - Facturado
+  paymentsMade: number;   // Pagos Hechos
   total: number;
 }
 
@@ -124,7 +124,7 @@ export interface Unit {
 // ============================================
 // US-005: Estatus Garantías
 // ============================================
-export type GuaranteeStatus = 'Programadas' | 'Naviera' | 'Operacion';
+export type GuaranteeStatus = 'Programadas' | 'Naviera' | 'Operación' | 'Recuperadas';
 
 export interface GuaranteeStatusData {
   // Resumen total por estatus
@@ -146,7 +146,8 @@ export interface WeekGuaranteeData {
   weekLabel: string;    // 'Sem.21', 'Sem.22', etc.
   scheduled: number;    // Programadas
   naviera: number;      // Naviera
-  operation: number;    // Operacion
+  operation: number;    // Operación
+  recovered: number;    // Recuperadas
   total: number;
 }
 
@@ -157,6 +158,7 @@ export interface MonthGuaranteeData {
   scheduled: number;
   naviera: number;
   operation: number;
+  recovered: number;
   total: number;
 }
 
@@ -165,6 +167,14 @@ export interface GuaranteeStatusDetail {
   amount: number;
   month: number;
   monthName: string;
+}
+
+export interface RecoveredTrendData {
+  data: {
+    month: number;
+    monthName: string;
+    amount: number;
+  }[];
 }
 
 // ============================================
@@ -318,4 +328,8 @@ export interface FilterOption {
   id: string;
   label: string;
   value: string;
+}
+export interface RecoveredTrendData {
+  currentYear: { month: number, monthName: string, amount: number }[];
+  previousYear: { month: number, monthName: string, amount: number }[];
 }

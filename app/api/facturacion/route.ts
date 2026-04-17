@@ -1,170 +1,283 @@
 // app/api/facturacion/route.ts
-// API Route para US-007: Facturación DAC (Honorarios vs Complementarios)
-// fn_Facturacion NO EXISTE en RECO — usamos consulta directa a tablas base
-// Agrupación semanal (como referencia visual) con desglose por oficina (Unidad)
-// GET /api/facturacion?year=2026&idEmpresa=1
+// API Route para US-008: Facturación DAC (Honorarios vs Complementarios)
+// GET /api/facturacion?year=2026&idEmpresa=1&view=mensual|semanal
+//
+// Vista MENSUAL: EXEC dbo.[sp_Facturacion] @Year, @IdEmpresa
+//   SP devuelve: Unidad, Oficina, Honorarios, OtrosIngresos, Total,
+//                PagosHechos, Anticipos, TotalCGA, MES
+//
+// Vista SEMANAL: Query directa a fn_Facturacion agrupada por semana
+//   Devuelve: Unidad, Oficina, Honorarios, Complementarios, PagosHechos, Semana
+//
+// Regla de negocio #4: Yuri quiere honorarios por semana Y por mes
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP, executeQueryWithRetry } from '@/lib/reco-api';
 import { BillingData, MonthBillingData, AduanaBilling } from '@/types/dashboard';
 
 export const dynamic = 'force-dynamic';
 
-// Réplica de dbo.EsClienteInterno en JS
-const INTERNAL_RFCS = new Set([
-  'DAC911011F57', 'GCA960517MYA', 'GLE961217IC5',
-  'KSI980219699', 'UNI931215B65', 'SPC911017BQ1',
-]);
+// ─── VISTA MENSUAL (SP D8) ─────────────────────────────────────────────────
 
-function isInternalClient(rfc: string, nombre: string): boolean {
-  if (INTERNAL_RFCS.has(rfc)) return true;
-  if (nombre.startsWith('INTERCONTINENTAL FORWARDING')) return true;
-  if (nombre.startsWith('RED TOTAL')) return true;
-  return false;
+async function getMensualData(year: number, idEmpresa: number) {
+  console.log(`[FACTURACION-MENSUAL] EXEC sp_Facturacion ${year}, ${idEmpresa}`);
+
+  const result = await executeSP(
+    'sp_Facturacion',
+    { Year: year, IdEmpresa: idEmpresa },
+    { useCache: true, retries: 2 }
+  );
+
+  const rows: any[] = result.success ? (result.data || []) : [];
+  console.log(`[FACTURACION-MENSUAL] ${rows.length} filas del SP`);
+
+  const today = new Date();
+  const maxMonth = year < today.getFullYear() ? 12 : today.getMonth() + 1;
+
+  // Map mes → totales consolidados
+  const mesMap = new Map<number, { honorarios: number; otros: number; total: number; pagosHechos: number }>();
+  for (let m = 1; m <= maxMonth; m++) {
+    mesMap.set(m, { honorarios: 0, otros: 0, total: 0, pagosHechos: 0 });
+  }
+
+  // Map aduana → mes → totales
+  const aduanaMap = new Map<string, Map<number, { honorarios: number; otros: number; total: number }>>();
+
+  rows.forEach((row: any) => {
+    const mes: number = row.MES ?? row.Mes ?? row.mes ?? 0;
+    if (mes < 1 || mes > maxMonth) return;
+
+    const hon     = Math.abs(row.Honorarios    ?? row.honorarios    ?? 0);
+    const otros   = Math.abs(row.OtrosIngresos ?? row.otrosingresos ?? 0);
+    const total   = Math.abs(row.Total         ?? row.total         ?? 0);
+    const pagos   = Math.abs(row.PagosHechos   ?? row.pagoshechos   ?? 0);
+    const oficina = (row.Oficina ?? row.oficina ?? 'Sin Oficina').toString().trim();
+
+    // Acumular por mes
+    const b = mesMap.get(mes)!;
+    b.honorarios += hon;
+    b.otros      += otros;
+    b.total      += total;
+    b.pagosHechos+= pagos;
+
+    // Acumular por aduana
+    if (!aduanaMap.has(oficina)) aduanaMap.set(oficina, new Map());
+    const am = aduanaMap.get(oficina)!;
+    const ab = am.get(mes) ?? { honorarios: 0, otros: 0, total: 0 };
+    ab.honorarios += hon;
+    ab.otros      += otros;
+    ab.total      += total;
+    am.set(mes, ab);
+  });
+
+  // Construir MonthBillingData[]
+  const monthlyData: MonthBillingData[] = [];
+  for (let m = 1; m <= maxMonth; m++) {
+    const b = mesMap.get(m)!;
+    monthlyData.push({
+      month:      m,
+      monthName:  new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' }),
+      honorarios: Math.round(b.honorarios * 100) / 100,
+      otros:      Math.round(b.otros      * 100) / 100,
+      total:      Math.round(b.total      * 100) / 100,
+    });
+  }
+
+  const totalHonorarios = monthlyData.reduce((s, w) => s + w.honorarios, 0);
+  const totalOtros      = monthlyData.reduce((s, w) => s + w.otros,      0);
+  const totalGeneral    = monthlyData.reduce((s, w) => s + w.total,       0);
+  const nonZero         = monthlyData.filter(w => w.total > 0);
+  const avgGeneral      = nonZero.length > 0 ? totalGeneral / nonZero.length : 0;
+
+  const aduanas: AduanaBilling[] = [
+    {
+      id:   'all',
+      name: 'Todas las Aduanas',
+      monthlyData,
+      average:        Math.round(avgGeneral      * 100) / 100,
+      totalHonorarios:Math.round(totalHonorarios * 100) / 100,
+      totalOtros:     Math.round(totalOtros      * 100) / 100,
+    },
+  ];
+
+  for (const [oficina, mMap] of Array.from(aduanaMap.entries()).sort()) {
+    const aduanaMensual: MonthBillingData[] = [];
+    for (let m = 1; m <= maxMonth; m++) {
+      const ab = mMap.get(m) ?? { honorarios: 0, otros: 0, total: 0 };
+      aduanaMensual.push({
+        month:      m,
+        monthName:  new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' }),
+        honorarios: Math.round(ab.honorarios * 100) / 100,
+        otros:      Math.round(ab.otros      * 100) / 100,
+        total:      Math.round(ab.total      * 100) / 100,
+      });
+    }
+    const totH  = aduanaMensual.reduce((s, w) => s + w.honorarios, 0);
+    const totO  = aduanaMensual.reduce((s, w) => s + w.otros,      0);
+    const nz    = aduanaMensual.filter(w => w.total > 0);
+    aduanas.push({
+      id:   oficina,
+      name: oficina,
+      monthlyData: aduanaMensual,
+      average:        nz.length > 0 ? Math.round((totH + totO) / nz.length * 100) / 100 : 0,
+      totalHonorarios:Math.round(totH * 100) / 100,
+      totalOtros:     Math.round(totO * 100) / 100,
+    });
+  }
+
+  return { aduanas, months: monthlyData.map(w => w.monthName) };
 }
+
+// ─── VISTA SEMANAL (query directa a fn_Facturacion) ───────────────────────
+
+async function getSemanalData(year: number, idEmpresa: number) {
+  const monthPromises = [];
+  for (let m = 1; m <= 12; m++) {
+    const startDate = new Date(year, m - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, m, 0).toISOString().split('T')[0];
+    
+    // Consultamos fn_Facturacion mes a mes limitando carga, pero agrupando por SEMANA
+    const query = `
+      SELECT
+        Unidad,
+        Oficina,
+        DATEPART(WEEK, Fecha) AS Semana,
+        SUM(Honorarios_ImpMB)      AS Honorarios,
+        SUM(Complementarios_ImpMB) AS OtrosIngresos,
+        SUM(TotalMB)               AS Total,
+        SUM(PagosHechosMB)         AS PagosHechos
+      FROM dbo.fn_Facturacion('${startDate}', '${endDate}', ${idEmpresa})
+      GROUP BY Unidad, Oficina, DATEPART(WEEK, Fecha)
+    `;
+    monthPromises.push(executeQueryWithRetry(query.trim(), { useCache: true, retries: 2 }));
+  }
+
+  console.log(`[FACTURACION-SEMANAL] Emitiendo 12 queries fragmentados para evaluar semanas en ${year}`);
+  const results = await Promise.all(monthPromises);
+  
+  const rows: any[] = [];
+  let debugError = null;
+  for (const res of results) {
+    if (res.success && res.data) {
+      rows.push(...res.data);
+    } else if (!res.success) {
+      console.error('[FACTURACION-SEMANAL] ERROR DE CHUNK:', res.error);
+      debugError = res.error;
+    }
+  }
+
+  console.log(`[FACTURACION-SEMANAL] ${rows.length} filas combinadas`);
+
+  // Agrupar por semana (global)
+  const weekMap = new Map<number, { honorarios: number; otros: number; total: number }>();
+  const aduanaWeekMap = new Map<string, Map<number, { honorarios: number; otros: number; total: number }>>();
+
+  rows.forEach((row: any) => {
+    const semana    = row.Semana    ?? row.semana    ?? 0;
+    const hon       = Math.abs(row.Honorarios    ?? 0);
+    const otros     = Math.abs(row.OtrosIngresos ?? 0);
+    const total     = Math.abs(row.Total         ?? 0);
+    const oficina   = (row.Oficina  ?? 'Sin Oficina').toString().trim();
+
+    const wk = weekMap.get(semana) ?? { honorarios: 0, otros: 0, total: 0 };
+    wk.honorarios += hon;
+    wk.otros      += otros;
+    wk.total      += total;
+    weekMap.set(semana, wk);
+
+    if (oficina) {
+      if (!aduanaWeekMap.has(oficina)) aduanaWeekMap.set(oficina, new Map());
+      const awMap = aduanaWeekMap.get(oficina)!;
+      const awk = awMap.get(semana) ?? { honorarios: 0, otros: 0, total: 0 };
+      awk.honorarios += hon;
+      awk.otros      += otros;
+      awk.total      += total;
+      awMap.set(semana, awk);
+    }
+  });
+
+  const sortedWeeks = Array.from(weekMap.entries()).sort((a, b) => a[0] - b[0]);
+
+  const weeklyData: MonthBillingData[] = sortedWeeks.map(([semana, data]) => ({
+    month:      semana,
+    monthName:  `Sem.${String(semana).padStart(2, '0')}`,
+    honorarios: Math.round(data.honorarios * 100) / 100,
+    otros:      Math.round(data.otros      * 100) / 100,
+    total:      Math.round(data.total      * 100) / 100,
+  }));
+
+  const totH  = weeklyData.reduce((s, w) => s + w.honorarios, 0);
+  const totO  = weeklyData.reduce((s, w) => s + w.otros,      0);
+  const totG  = weeklyData.reduce((s, w) => s + w.total,       0);
+  const nzWk  = weeklyData.filter(w => w.total > 0);
+  const avgG  = nzWk.length > 0 ? totG / nzWk.length : 0;
+
+  const aduanas: AduanaBilling[] = [
+    {
+      id:   'all',
+      name: 'Todas las Aduanas',
+      monthlyData: weeklyData,
+      average:        Math.round(avgG * 100) / 100,
+      totalHonorarios:Math.round(totH * 100) / 100,
+      totalOtros:     Math.round(totO * 100) / 100,
+    },
+  ];
+
+  for (const [oficina, wMap] of Array.from(aduanaWeekMap.entries()).sort()) {
+    const aduanaSemanal: MonthBillingData[] = sortedWeeks.map(([semana]) => {
+      const ab = wMap.get(semana) ?? { honorarios: 0, otros: 0, total: 0 };
+      return {
+        month:      semana,
+        monthName:  `Sem.${String(semana).padStart(2, '0')}`,
+        honorarios: Math.round(ab.honorarios * 100) / 100,
+        otros:      Math.round(ab.otros      * 100) / 100,
+        total:      Math.round(ab.total      * 100) / 100,
+      };
+    });
+    const tH  = aduanaSemanal.reduce((s, w) => s + w.honorarios, 0);
+    const tO  = aduanaSemanal.reduce((s, w) => s + w.otros,      0);
+    const nz  = aduanaSemanal.filter(w => w.total > 0);
+    aduanas.push({
+      id:   oficina,
+      name: oficina,
+      monthlyData: aduanaSemanal,
+      average:        nz.length > 0 ? Math.round((tH + tO) / nz.length * 100) / 100 : 0,
+      totalHonorarios:Math.round(tH * 100) / 100,
+      totalOtros:     Math.round(tO * 100) / 100,
+    });
+  }
+  let __debug_error = null;
+  if(debugError){
+     __debug_error = debugError;
+  }
+  return { aduanas, months: weeklyData.map(w => w.monthName), __debug_error };
+}
+
+// ─── HANDLER PRINCIPAL ─────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    const idEmpresa = parseInt(searchParams.get('idEmpresa') || '1');
+    const year        = parseInt(searchParams.get('year')       || new Date().getFullYear().toString());
+    const idEmpresa   = parseInt(searchParams.get('idEmpresa')  || '1');
+    const view        = searchParams.get('view') || 'semanal'; // 'semanal' | 'mensual'
 
     if (isNaN(year) || isNaN(idEmpresa)) {
       return NextResponse.json({ error: 'Parámetros inválidos.' }, { status: 400 });
     }
 
-    // Consulta directa a tablas base (~5s) — misma estrategia US-002/003/006
-    // Agrupamos por semana para coincidir con la referencia visual (Sem.XX)
-    const query = `
-      SELECT
-        DATEPART(WEEK, cg.Fecha) AS Semana,
-        cg.NombreSucursal AS Oficina,
-        ISNULL(s.Saldo, 0) AS Saldo,
-        CASE WHEN cg.FacturarAidCliente > 0 THEN cg.FacturarARfcCliente ELSE c.sRFC END AS RFC,
-        CASE WHEN cg.FacturarAidCliente > 0 THEN cg.FacturarARazonSocialCliente ELSE c.sRazonSocial END AS RazonSocial
-      FROM admin.ADMIN_VT_CGastosCabecera cg
-      LEFT JOIN admin.ADMIN_VT_SaldoCGA s ON cg.IdCuentaGastos = s.nIdCtaGastos15
-      INNER JOIN Admin.ADMINC_07_CLIENTES c ON c.nIdClie07 = ISNULL(cg.FacturarAidCliente, cg.IdCliente)
-      WHERE cg.idEmpresa = ${idEmpresa}
-        AND cg.Estatus <> 1
-        AND ABS(ISNULL(s.Saldo, 0)) > 1
-        AND YEAR(cg.Fecha) = ${year}
-    `;
+    let response: BillingData;
 
-    console.log(`[FACTURACION] Query directa tablas base, año ${year}`);
-
-    const result = await executeQueryWithRetry(query, { useCache: true, retries: 2 });
-
-    if (!result.success || !result.data) {
-      console.error('[FACTURACION] Error:', result.error);
-      return NextResponse.json({ error: 'Error al obtener datos' }, { status: 500 });
+    if (view === 'mensual') {
+      const data = await getMensualData(year, idEmpresa);
+      response = data as BillingData;
+    } else {
+      const data = await getSemanalData(year, idEmpresa);
+      response = data as BillingData;
     }
-
-    // Filtrar clientes internos
-    const rows = result.data.filter((row: any) => {
-      const rfc = (row.RFC || '').trim();
-      const nombre = (row.RazonSocial || '').trim();
-      return !isInternalClient(rfc, nombre);
-    });
-
-    console.log(`[FACTURACION] ${result.data.length} filas totales, ${rows.length} externas`);
-    if (rows.length > 0) {
-      console.log(`[FACTURACION] Keys:`, Object.keys(rows[0]));
-    }
-
-    // Agrupar por semana
-    const weekMap = new Map<number, { total: number; count: number }>();
-    const aduanaWeekMap = new Map<string, Map<number, { total: number; count: number }>>();
-
-    rows.forEach((row: any) => {
-      const semana = row.Semana || 0;
-      const saldo = Math.abs(row.Saldo || 0);
-      const oficina = (row.Oficina || '').toString().trim();
-
-      // Total por semana
-      const wk = weekMap.get(semana) || { total: 0, count: 0 };
-      weekMap.set(semana, { total: wk.total + saldo, count: wk.count + 1 });
-
-      // Por aduana (oficina)
-      if (oficina) {
-        if (!aduanaWeekMap.has(oficina)) aduanaWeekMap.set(oficina, new Map());
-        const awMap = aduanaWeekMap.get(oficina)!;
-        const awk = awMap.get(semana) || { total: 0, count: 0 };
-        awMap.set(semana, { total: awk.total + saldo, count: awk.count + 1 });
-      }
-    });
-
-    // Construir datos semanales ordenados
-    // Para el desglose hon/otros: usamos ~47% honorarios como proxy (ratio típico del SDD)
-    const HON_RATIO = 0.47;
-    const sortedWeeks = Array.from(weekMap.entries()).sort((a, b) => a[0] - b[0]);
-
-    const weeklyData: MonthBillingData[] = sortedWeeks.map(([semana, data]) => {
-      const honorarios = Math.round(data.total * HON_RATIO * 100) / 100;
-      const otros = Math.round((data.total - honorarios) * 100) / 100;
-      return {
-        month: semana,
-        monthName: `Sem.${String(semana).padStart(2, '0')}`,
-        honorarios,
-        otros,
-        total: Math.round(data.total * 100) / 100,
-      };
-    });
-
-    // Totales
-    const totalGeneral = weeklyData.reduce((s, w) => s + w.total, 0);
-    const totalHonorarios = weeklyData.reduce((s, w) => s + w.honorarios, 0);
-    const totalOtros = weeklyData.reduce((s, w) => s + w.otros, 0);
-    const nonZeroWeeks = weeklyData.filter(w => w.total > 0);
-    const avgGeneral = nonZeroWeeks.length > 0 ? totalGeneral / nonZeroWeeks.length : 0;
-
-    // Construir lista de aduanas
-    const aduanasList: AduanaBilling[] = [
-      {
-        id: 'all',
-        name: 'Todas las Aduanas',
-        monthlyData: weeklyData,
-        average: Math.round(avgGeneral * 100) / 100,
-        totalHonorarios: Math.round(totalHonorarios * 100) / 100,
-        totalOtros: Math.round(totalOtros * 100) / 100,
-      },
-    ];
-
-    // Aduanas individuales
-    for (const [oficina, wMap] of Array.from(aduanaWeekMap.entries()).sort()) {
-      const aduanaWeekly: MonthBillingData[] = sortedWeeks.map(([semana]) => {
-        const data = wMap.get(semana) || { total: 0, count: 0 };
-        const hon = Math.round(data.total * HON_RATIO * 100) / 100;
-        const otros = Math.round((data.total - hon) * 100) / 100;
-        return {
-          month: semana,
-          monthName: `Sem.${String(semana).padStart(2, '0')}`,
-          honorarios: hon,
-          otros,
-          total: Math.round(data.total * 100) / 100,
-        };
-      });
-
-      const totHon = aduanaWeekly.reduce((s, w) => s + w.honorarios, 0);
-      const totOtros = aduanaWeekly.reduce((s, w) => s + w.otros, 0);
-      const nonZero = aduanaWeekly.filter(w => w.total > 0);
-
-      aduanasList.push({
-        id: oficina,
-        name: oficina,
-        monthlyData: aduanaWeekly,
-        average: nonZero.length > 0 ? Math.round(((totHon + totOtros) / nonZero.length) * 100) / 100 : 0,
-        totalHonorarios: Math.round(totHon * 100) / 100,
-        totalOtros: Math.round(totOtros * 100) / 100,
-      });
-    }
-
-    const response: BillingData = {
-      aduanas: aduanasList,
-      months: weeklyData.map(w => w.monthName),
-    };
 
     return NextResponse.json(response);
+
   } catch (error) {
     console.error('Error en /api/facturacion:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });

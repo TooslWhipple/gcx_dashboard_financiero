@@ -79,7 +79,7 @@ export function GuaranteeAgingChart({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start px-3 sm:px-6 pt-2">
 
           {/* Pie Chart */}
-          <div className="h-[240px] sm:h-[280px]">
+          <div className="h-[400px] sm:h-[480px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -88,8 +88,8 @@ export function GuaranteeAgingChart({
                   nameKey="range"
                   cx="50%"
                   cy="50%"
-                  outerRadius="45%"
-                  innerRadius="22%"
+                  outerRadius="70%"
+                  innerRadius="35%"
                   paddingAngle={2}
                 >
                   {nonZero.map((entry) => (

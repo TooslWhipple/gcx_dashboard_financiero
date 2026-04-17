@@ -3,7 +3,31 @@
 // http://rws.grucas.com:19287/api/reco/encoded
 
 const RECO_API_URL = process.env.RECO_API_URL || 'http://rws.grucas.com:19287/api/reco/encoded';
-const RECO_TIMEOUT_MS = 9000; // 9s para caber dentro del límite de 10s de Netlify Functions
+const RECO_TIMEOUT_MS = 60000; // 60s — los SPs tardan ~33s según Postman
+const MAX_CONCURRENT_REQUESTS = 2; // Máximo de llamadas simultáneas al API RECO
+
+// ─── Semáforo de concurrencia ────────────────────────────────────────────────
+// El servidor RECO no soporta muchas conexiones simultáneas.
+// Limita a MAX_CONCURRENT_REQUESTS en paralelo; el resto espera en cola.
+let _activeRequests = 0;
+let _waitQueue: (() => void)[] = [];
+
+function acquireSlot(): Promise<void> {
+  if (_activeRequests < MAX_CONCURRENT_REQUESTS) {
+    _activeRequests++;
+    return Promise.resolve();
+  }
+  return new Promise(resolve => _waitQueue.push(resolve));
+}
+
+function releaseSlot(): void {
+  if (_waitQueue.length > 0) {
+    const next = _waitQueue.shift()!;
+    next(); // no decrementa — transfiere el slot
+  } else {
+    _activeRequests--;
+  }
+}
 
 /**
  * Codifica un string a Base64 (compatible con Node.js y Edge)
@@ -18,9 +42,15 @@ function toBase64(str: string): string {
 }
 
 /**
- * Codifica credenciales en Base64 (username:password)
+ * Obtiene el token de autenticación.
+ * Prioriza RECO_TOKEN directo (el mismo que funciona en Postman).
+ * Si no existe, genera base64 de user:password.
  */
 function getAuthToken(): string {
+  // Token directo — evita problemas de encoding con caracteres especiales
+  const directToken = process.env.RECO_TOKEN;
+  if (directToken) return directToken;
+
   const user = process.env.GCX_USER || '';
   const password = process.env.GCX_PASSWORD || '';
   return toBase64(`${user}:${password}`);
@@ -37,14 +67,14 @@ function encodeQuery(query: string): string {
  * Verifica si la query es segura (solo SELECT o WITH SELECT)
  */
 function isSafeQuery(query: string): boolean {
-  const upperQuery = query.toUpperCase();
-  const forbiddenWords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'EXEC', 'MERGE', 'CALL', 'CREATE'];
+  const upperQuery = query.toUpperCase().trim();
+  const forbiddenWords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'MERGE', 'CALL', 'CREATE'];
   
-  // Debe comenzar con SELECT o WITH
-  const hasSelect = upperQuery.trim().startsWith('SELECT') || upperQuery.trim().startsWith('WITH');
-  if (!hasSelect) return false;
+  // Debe comenzar con SELECT, WITH o EXEC (stored procedures permitidos)
+  const hasValidStart = upperQuery.startsWith('SELECT') || upperQuery.startsWith('WITH') || upperQuery.startsWith('EXEC');
+  if (!hasValidStart) return false;
   
-  // No debe contener palabras prohibidas
+  // No debe contener palabras prohibidas que modifiquen datos
   return !forbiddenWords.some(word => upperQuery.includes(word));
 }
 
@@ -65,14 +95,16 @@ export async function executeQuery(query: string): Promise<RecoQueryResult> {
       console.error('[RECO API] Query no permitida:', query.substring(0, 100));
       return {
         success: false,
-        error: 'Query no permitida. Solo se permiten consultas SELECT o WITH SELECT.'
+        error: 'Query no permitida. Solo se permiten consultas SELECT, WITH SELECT o EXEC.'
       };
     }
 
     const token = getAuthToken();
     const encodedQuery = encodeQuery(query);
 
-    // AbortController para respetar timeout de Netlify Functions (10s)
+    // Esperar un slot disponible (semáforo de concurrencia)
+    await acquireSlot();
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), RECO_TIMEOUT_MS);
 
@@ -81,7 +113,7 @@ export async function executeQuery(query: string): Promise<RecoQueryResult> {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ query: encodedQuery, format: 'json' }),
         signal: controller.signal,
@@ -107,6 +139,7 @@ export async function executeQuery(query: string): Promise<RecoQueryResult> {
       };
     } finally {
       clearTimeout(timeoutId);
+      releaseSlot();
     }
 
   } catch (error) {
@@ -114,7 +147,9 @@ export async function executeQuery(query: string): Promise<RecoQueryResult> {
     console.error('[RECO API] Exception:', msg);
     return {
       success: false,
-      error: msg.includes('abort') ? 'Timeout: la consulta tardó más de 9 segundos' : msg
+      error: msg.includes('abort')
+        ? `Timeout: la consulta tardó más de ${RECO_TIMEOUT_MS / 1000}s`
+        : msg
     };
   }
 }
@@ -126,7 +161,7 @@ export async function executeQueryWithRetry(
   query: string,
   options: { useCache?: boolean; retries?: number } = {}
 ): Promise<RecoQueryResult> {
-  const MAX_RETRIES = 2;
+  const MAX_RETRIES = 3;
   const { useCache = false, retries = MAX_RETRIES } = options;
   
   let lastError: string | undefined;
@@ -176,6 +211,28 @@ export async function executeQueryWithParams(
   }
   
   return executeQuery(finalQuery);
+}
+
+/**
+ * Ejecuta un Stored Procedure con parámetros NOMBRADOS.
+ * Genera: EXEC dbo.spName @Param1 = value1, @Param2 = value2;
+ * Formato idéntico al que funciona en Postman.
+ */
+export async function executeSP(
+  spName: string,
+  params: Record<string, string | number>,
+  options: { useCache?: boolean; retries?: number } = {}
+): Promise<RecoQueryResult> {
+  const paramStr = Object.entries(params).map(([name, value]) => {
+    const val = typeof value === 'number'
+      ? String(value)
+      : `'${String(value).replace(/'/g, "''")}'`;
+    return `@${name} = ${val}`;
+  }).join(', ');
+
+  const query = `EXEC dbo.${spName} ${paramStr};`;
+  console.log(`[EXEC SP] ${query.substring(0, 150)}`);
+  return executeQueryWithRetry(query, options);
 }
 
 // Queries predefinidas para el dashboard
