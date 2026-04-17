@@ -322,7 +322,7 @@ Base_CG AS
         ,DATEDIFF
          (
             DAY,
-            DATEADD(DAY, CASE WHEN CGA.DiasCreditoCliente > 0 THEN CGA.DiasCreditoCliente ELSE 0 END, CGA.Fecha),
+            DATEADD(DAY, CASE WHEN CGA.DiasCreditoCliente > 0 THEN CGA.DiasCreditoCliente ELSE 30 END, CGA.Fecha),
             M.FechaFinMes
          ) AS DiasTranscurridos
         ,SPM.Saldo AS Saldo

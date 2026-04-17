@@ -582,3 +582,13 @@ El API RECO tiene limitación de conexiones simultáneas. El cliente (`lib/reco-
 | `GCX_USER` | Usuario para el token RECO |
 | `GCX_PASSWORD` | Contraseña para el token RECO |
 | `RECO_TOKEN` | Token pre-calculado Base64 de `user:password` |
+
+---
+
+## Futuras Mejoras (En Backlog)
+
+| Módulo | Descripción del requerimiento | Notas |
+|---|---|---|
+| **Financiamiento** | Cambiar la gráfica y tabla de "Tendencia de Financiamiento" para que se pueda desglosar e inspeccionar por **Cliente** en lugar de por Oficina/Unidad. | Solicitud de Rosalinda en la reunión de validación. |
+| **Financiamiento** | Integrar en el módulo de Financiamiento los campos de **"Pagos Hechos"**, **"Servicios Complementarios"** y el **"Total de la Cartera"**. | *Nota técnica: El SP actual (`sp_Tendencia_Financiamiento`) no tiene este nivel de granularidad. Se requerirá diseñar y programar una consulta directa (similar a `Antigüedad de Cartera`) cruzando la tabla de Gastos con Detalles de Liquidaciones que soporte este detalle por cliente.* |
+| **Históricos (Snapshots)** | Lograr que los reportes de meses anteriores queden "congelados", es decir, que si se aplica un pago hoy a una factura de febrero, el saldo deudor mostrado en febrero no disminuya retroactivamente. | Requerimiento de Ignacio. Actualmente las consultas a RECO son "en vivo", por lo que los saldos se actualizan dinámicamente si se pagan facturas antiguas. Implica generar una tabla Snapshot en BD. |

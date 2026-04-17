@@ -278,7 +278,7 @@ Base_CG AS
          END AS RFC
         ,DATEDIFF(
             DAY,
-            DATEADD(DAY, CASE WHEN ISNULL(CLI.nDiasCred,0) > 0 THEN CLI.nDiasCred ELSE 0 END, CG.dFactura),
+            DATEADD(DAY, CASE WHEN ISNULL(CLI.nDiasCred,0) > 0 THEN CLI.nDiasCred ELSE 30 END, CG.dFactura),
             '${safeFechaCorte}'
          ) AS DiasTranscurridos
         ,SCGA.Saldo
