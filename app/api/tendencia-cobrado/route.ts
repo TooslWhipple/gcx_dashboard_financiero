@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     // Dos llamadas paralelas: año actual y año anterior
     const [currentResult, previousResult] = await Promise.all([
-      executeQueryWithRetry(currentQuery, { useCache: false, retries: 2 }),
+      executeQueryWithRetry(currentQuery, { useCache: true, retries: 2 }),
       executeQueryWithRetry(previousQuery, { useCache: true, retries: 2 }),
     ]);
 
