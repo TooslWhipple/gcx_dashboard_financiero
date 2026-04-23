@@ -6,10 +6,9 @@
 //   [61-90], [91-120], [121-500 Dias], CO(Total), NombreSucursal
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP } from '@/lib/reco-api';
 import { AgingData, AgingBucket, AgingDetail, AgingRange } from '@/types/dashboard';
 import { agingRiskColors } from '@/lib/utils/colors';
-import { buildAntiguedadCarteraQuery } from '@/lib/queries/antiguedad-cartera';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +34,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Construir query directa (reemplaza EXEC sp_Antiguedad_cartera)
-    const query = buildAntiguedadCarteraQuery(fechaCorte, idEmpresa);
-    console.log(`[ANTIGUEDAD-CARTERA] Query directa fechaCorte='${fechaCorte}', empresa=${idEmpresa}`);
-
-    const result = await executeQueryWithRetry(
-      query,
-      { useCache: true, retries: 2 }
+    // Ejecutar SP original (igual que Postman) — sin caché para datos frescos
+    console.log(`[ANTIGUEDAD-CARTERA] EXEC sp_Antiguedad_cartera @FechaCorte='${fechaCorte}', @IdEmpresa=${idEmpresa}`);
+    const result = await executeSP(
+      'sp_Antiguedad_cartera',
+      { FechaCorte: fechaCorte, IdEmpresa: idEmpresa },
+      { useCache: false, retries: 2 }
     );
 
     if (!result.success || !result.data) {
