@@ -133,8 +133,10 @@ async function getMensualData(year: number, idEmpresa: number) {
 async function getSemanalData(year: number, idEmpresa: number) {
   const monthPromises = [];
   for (let m = 1; m <= 12; m++) {
-    const startDate = new Date(year, m - 1, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, m, 0).toISOString().split('T')[0];
+    // Formatear fechas manualmente para evitar desfase UTC
+    const startDate = `${year}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, m, 0).getDate();
+    const endDate = `${year}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     
     // Consultamos fn_Facturacion mes a mes limitando carga, pero agrupando por SEMANA
     const query = `

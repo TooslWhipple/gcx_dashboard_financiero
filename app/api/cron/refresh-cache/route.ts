@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import redis from '@/lib/redis';
+import { getMexicoDateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
 
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
     const idEmpresa = parseInt(searchParams.get('idEmpresa') || '1');
-    const fechaCorte = searchParams.get('fechaCorte') || new Date().toISOString().split('T')[0];
+    const fechaCorte = searchParams.get('fechaCorte') || getMexicoDateString();
 
     console.log('[CRON] Iniciando proceso de refresco de caché...');
 

@@ -3,9 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import { Header } from "@/components/layout/header"
-import { Sidebar } from "@/components/layout/sidebar"
-import { Suspense } from "react"
+import { AppShell } from "@/components/layout/app-shell"
 import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -25,19 +23,7 @@ export default function RootLayout({
     <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans">
         <Providers>
-          <div className="flex min-h-screen">
-            <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-50 bg-card border-r">
-              <Suspense fallback={<div>Loading...</div>}>
-                <Sidebar />
-              </Suspense>
-            </aside>
-            <div className="flex-1 md:ml-64 min-w-0 overflow-x-hidden">
-              <Suspense fallback={<div>Loading...</div>}>
-                <Header />
-              </Suspense>
-              <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden min-w-0">{children}</main>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
           <Analytics />
         </Providers>
       </body>

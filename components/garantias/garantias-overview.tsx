@@ -44,12 +44,12 @@ export function GarantiasOverview() {
     idEmpresa: 1,
   });
 
-  // Antigüedad de Cartera Garantías (fn_GarantiasPorCobrar — corte hoy)
+  // Antigüedad de Cartera Garantías (sp_Antiguedad_cartera_garantias — corte hoy)
   const { data: agingData, isLoading: isLoadingAging, isError: isErrorAging } = useGuaranteeAging({
     idEmpresa: 1,
   });
 
-  // US-008: Tendencia Cartera de Garantías (fn_GarantiasPorCobrar — semanal, 45 días)
+  // US-008: Tendencia Cartera de Garantías (sp_Tendencia_cartera_Garantias — mensual, 45 días)
   const { data: trendData, isLoading: isLoadingTrend, isError: isErrorTrend } = useGuaranteeTrend({
     year: selectedYear,
     idEmpresa: 1,

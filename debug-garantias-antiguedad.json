@@ -1,0 +1,572 @@
+[
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "AGENCIA ROJAS VELA Y ASOCIADOS SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 102617.6,
+    "Saldo": 102617.6
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "AGENCIA ROJAS VELA Y ASOCIADOS SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 76881.6,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 76881.6
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "AGENCIA ROJAS VELA Y ASOCIADOS SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 135898.92,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 135898.92
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "ALMACENADORA GOLMEX SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 34000,
+    "Saldo": 42000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "ALTAMARITIMA SA DE CV -ACREED",
+    "01-30": 218696.76,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 88000,
+    "Saldo": 306696.76
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "AMERICA LOGISTIC GROUP SA DE CV-ACREED",
+    "01-30": 25000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 25000
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "CCA FORWARDING & E-COMMERCE SA DE CV - PROVEED",
+    "01-30": 0,
+    "31-60": 39047.76,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 39047.76
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "CGI LOGISTICS, S.A. DE C.V -ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 50000,
+    "91-120": 0,
+    "121-500 Dias": 294685.22,
+    "Saldo": 344685.22
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "CIF ALMACENAJES Y SERVICIOS SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 0
+  },
+  {
+    "sNombreSucursal": "LAZARO CARDENAS",
+    "sProveedor": "CMA CGM SA - ACREE",
+    "01-30": 44000,
+    "31-60": 22000,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 66000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "CMA CGM SA - ACREE",
+    "01-30": 1034000,
+    "31-60": 22000,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 1056000
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "CMA-CGM MEXICO SA DE CV",
+    "01-30": 528000,
+    "31-60": 154000,
+    "61-90": 154000,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 836000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "CONSIGNATARIA OCEANICA SA DE CV-ACREED",
+    "01-30": 58436.24,
+    "31-60": 38881.6,
+    "61-90": 19236.16,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 116554
+  },
+  {
+    "sNombreSucursal": "CORRESPONSALIA",
+    "sProveedor": "COSCO SHIPPING LINES MEXICO S DE RL DE CV -ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 75000,
+    "Saldo": 75000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "COSCO SHIPPING LINES MEXICO S DE RL DE CV -ACREED",
+    "01-30": 375000,
+    "31-60": 25000,
+    "61-90": 100000,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 500000
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "COSCO SHIPPING LINES MEXICO S DE RL DE CV -ACREED",
+    "01-30": 25000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 25000
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "COSCO SHIPPING LINES MEXICO S DE RL DE CV -ACREED",
+    "01-30": 125000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 125000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "COTRANS SA-ACREED",
+    "01-30": 57440.8,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 57440.8
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "DACHSER DE MEXICO SA DE CV - ACREE",
+    "01-30": 0,
+    "31-60": 87976.24,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 87976.24
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "DIVERSITY CARGO SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 40000,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 40000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "DSV AIR & SEA SA DE CV - ACREE",
+    "01-30": 0,
+    "31-60": 19747.76,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19747.76
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "DSV AIR & SEA SA DE CV - ACREE",
+    "01-30": 75000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 75000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "EUROPARTNERS MEXICO SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 38643.12,
+    "121-500 Dias": 0,
+    "Saldo": 38643.12
+  },
+  {
+    "sNombreSucursal": "CORRESPONSALIA",
+    "sProveedor": "EVERGREEN SHIPPING AGENCY MEXICO SA DE CV-ACREE",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 42000,
+    "Saldo": 42000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "EVERGREEN SHIPPING AGENCY MEXICO SA DE CV-ACREE",
+    "01-30": 420000,
+    "31-60": 105000,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 525000
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "FMS LOGISTICS MEXICO S DE RL DE CV",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 126672.84
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "GRUPO DE INTERCAMBIO COMERCIAL SA DE CV-ACREED",
+    "01-30": 19798.92,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19798.92
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "GRUPO DE INTERCAMBIO COMERCIAL SA DE CV-ACREED",
+    "01-30": 19287.32,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19287.32
+  },
+  {
+    "sNombreSucursal": "CORRESPONSALIA",
+    "sProveedor": "HAPAG-LLOYD MEXICO S.A. DE C.V. -ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 22029.06,
+    "Saldo": 22029.06
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "HAPAG-LLOYD MEXICO S.A. DE C.V. -ACREED",
+    "01-30": 25000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 25000
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "INTERCAM BANCO SA INSTITUCION DE BANCA MULTIPLE - ACREE",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 0
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "KOREAN MARITIME AGENCIA SA DE CV-ACREED",
+    "01-30": 114139.64,
+    "31-60": 39250.08,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 153389.72
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "LESCHACO MEXICANA SA DE CV-ACREED",
+    "01-30": 22000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 22000
+  },
+  {
+    "sNombreSucursal": "CORRESPONSALIA",
+    "sProveedor": "MAERSK MEXICO SA DE CV-ACREE",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 18800,
+    "Saldo": 18800
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "MAERSK MEXICO SA DE CV-ACREE",
+    "01-30": 1399457.32,
+    "31-60": 234395.68,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 1633853
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "MAERSK MEXICO SA DE CV-ACREE",
+    "01-30": 365374.88,
+    "31-60": 39137.4,
+    "61-90": 0,
+    "91-120": 20003.56,
+    "121-500 Dias": 0,
+    "Saldo": 424515.84
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "MAERSK MEXICO SA DE CV-ACREE",
+    "01-30": 116525.88,
+    "31-60": 19901.24,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 136427.12
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "MEDITERRANEAN SHIPPING COMPANY MEXICO, S.A. DE C.V. - ACREE",
+    "01-30": 19389.64,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19389.64
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "MEDITERRANEAN SHIPPING COMPANY MEXICO, S.A. DE C.V. - ACREE",
+    "01-30": 931365.96,
+    "31-60": 19389.64,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 950755.6
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "MEDITERRANEAN SHIPPING COMPANY MEXICO, S.A. DE C.V. - ACREE",
+    "01-30": 734774.16,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 734774.16
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "NAVIERA MEXIMARES SA DE CV - ACREE",
+    "01-30": 0,
+    "31-60": 105000,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 105000
+  },
+  {
+    "sNombreSucursal": "LAZARO CARDENAS",
+    "sProveedor": "ONE OCEAN NETWORK EXPRESS SHIPPING MEXICO SA DE CV",
+    "01-30": 0,
+    "31-60": 19952.4,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19952.4
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "ONE OCEAN NETWORK EXPRESS SHIPPING MEXICO SA DE CV - ACREE",
+    "01-30": 59038.64,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 59038.64
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "ORIENT OVERSEAS CONTAINER LINE LIMITED-ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 94938.48,
+    "91-120": 173696.6,
+    "121-500 Dias": 124114.16,
+    "Saldo": 392749.24
+  },
+  {
+    "sNombreSucursal": "TAMPICO",
+    "sProveedor": "ORIENT OVERSEAS CONTAINER LINE LIMITED-ACREED",
+    "01-30": 39597.84,
+    "31-60": 0,
+    "61-90": 19236.16,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 58834
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "ORIENT OVERSEAS CONTAINER LINE LIMITED-ACREED",
+    "01-30": 137341.04,
+    "31-60": 173642.04,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 310983.08
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "PACIFIC INTERNATIONAL LINES LTD - ACREE",
+    "01-30": 0,
+    "31-60": 19236.16,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19236.16
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "PIL SHIPPING MEXICO SAPI DE CV- ACREED",
+    "01-30": 19798.92,
+    "31-60": 638691.04,
+    "61-90": 376872.32,
+    "91-120": 0,
+    "121-500 Dias": 40362.84,
+    "Saldo": 1075725.12
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "PRO-SHIPPING INTERNATIONAL SA DE CV-ACREED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 21000,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 21000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "REPRESENTACIONES MARITIMAS SA DE CV",
+    "01-30": 19185,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 19185
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "REPRESENTACIONES MARITIMAS SA DE CV -ACREED",
+    "01-30": 96999.36,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 96999.36
+  },
+  {
+    "sNombreSucursal": "VERACRUZ",
+    "sProveedor": "SAVINO DEL BENE MEXICO S.A. DE C.V. - ACREE",
+    "01-30": 117602.29,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 117602.29
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "TIERRAMARAIRE SA-ACREED",
+    "01-30": 88000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 88000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "UNICO LOGISTICS MEX S DE RL DE CV-PROVEED",
+    "01-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 29093.12,
+    "121-500 Dias": 0,
+    "Saldo": 29093.12
+  },
+  {
+    "sNombreSucursal": "LAZARO CARDENAS",
+    "sProveedor": "WAN HAI LINE MEXICO SA DE CV - PROVEE",
+    "01-30": 20000,
+    "31-60": 0,
+    "61-90": 40000,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 60000
+  },
+  {
+    "sNombreSucursal": "LAZARO CARDENAS",
+    "sProveedor": "WAN HAI LINES MEXICO SA DE CV-ACREED",
+    "01-30": 40000,
+    "31-60": 0,
+    "61-90": 0,
+    "91-120": 0,
+    "121-500 Dias": 0,
+    "Saldo": 40000
+  },
+  {
+    "sNombreSucursal": "MANZANILLO",
+    "sProveedor": "WAN HAI LINES MEXICO SA DE CV-ACREED",
+    "01-30": 720000,
+    "31-60": 280000,
+    "61-90": 20000,
+    "91-120": 0,
+    "121-500 Dias": 120000,
+    "Saldo": 1140000
+  }
+]

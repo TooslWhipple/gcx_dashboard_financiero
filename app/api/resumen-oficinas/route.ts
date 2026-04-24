@@ -10,13 +10,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeSP, executeQueryWithRetry } from '@/lib/reco-api';
 import { OfficeSummaryData, OfficeSummary } from '@/types/dashboard';
 import { buildResumenOficinasQuery } from '@/lib/queries/resumen-oficinas';
+import { getMexicoDateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const fechaCorte = searchParams.get('fechaCorte') || new Date().toISOString().split('T')[0];
+    const fechaCorte = searchParams.get('fechaCorte') || getMexicoDateString();
     const idEmpresa  = parseInt(searchParams.get('idEmpresa') || '1');
 
     if (!fechaCorte || isNaN(idEmpresa)) {
@@ -29,8 +30,12 @@ export async function GET(request: NextRequest) {
     console.log(`[RESUMEN-OFICINAS] Using direct query via fn_CuentasPorCobrar_Excel for ${fechaCorte}, ${idEmpresa}`);
 
     const sqlQuery = buildResumenOficinasQuery(fechaCorte, idEmpresa);
+    console.log(`[RESUMEN-OFICINAS] ===== ${new Date().toISOString()} =====`);
+    console.log('[RESUMEN-OFICINAS] fechaCorte:', fechaCorte, 'idEmpresa:', idEmpresa);
+    console.log('[RESUMEN-OFICINAS] SQL Query:\n', sqlQuery);
 
-    const result = await executeQueryWithRetry(sqlQuery);
+    // IMPORTANTE: sin cache para siempre traer datos frescos
+    const result = await executeQueryWithRetry(sqlQuery, { useCache: false, forceRefresh: true });
 
     if (!result.success || !result.data) {
       console.error('[RESUMEN-OFICINAS] Error del Direct Query:', result.error);
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
         totals: {
           id: 'totals', name: 'TOTALES', invoiceCount: 0,
           range01to30: 0, range31to45: 0, range46to60: 0,
-          range61to90: 0, range91plus: 0, total: 0,
+          range61to90: 0, range91to120: 0, range121plus: 0, total: 0,
           dacBalance: 0, clientBalance: 0, collected: 0, overdue: 0,
         },
       };
@@ -50,6 +55,11 @@ export async function GET(request: NextRequest) {
 
     const rows: any[] = result.data;
     console.log(`[RESUMEN-OFICINAS] ${rows.length} oficinas recibidas del Query`);
+
+    // Log detallado para debug comparativo
+    rows.forEach((row, i) => {
+      console.log(`[RESUMEN-OFICINAS] Raw[${i}] ${row['Oficina'] ?? row['oficina']}: Fact=${row['Fact']}, 01-30=${row['01-30']}, 31-45=${row['31-45']}, 46-60=${row['46-60']}, 61-90=${row['61-90']}, 91-120=${row['91-120']}, 121-500=${row['121-500 Dias']}, Total=${row['Total']}, DAC=${row['Saldo DAC']}, Clientes=${row['Saldos Clientes']}, Vencido=${row['Vencido']}`);
+    });
 
     // Mapear cada fila a OfficeSummary
     const offices: OfficeSummary[] = rows
@@ -78,7 +88,8 @@ export async function GET(request: NextRequest) {
           range31to45:  Math.round(r3145  * 100) / 100,
           range46to60:  Math.round(r4660  * 100) / 100,
           range61to90:  Math.round(r6190  * 100) / 100,
-          range91plus:  Math.round((r91120 + r121p) * 100) / 100,
+          range91to120: Math.round(r91120 * 100) / 100,
+          range121plus: Math.round(r121p  * 100) / 100,
           total:        Math.round(total  * 100) / 100,
           dacBalance:   Math.round(dac    * 100) / 100,
           clientBalance:Math.round(cli    * 100) / 100,
@@ -97,7 +108,8 @@ export async function GET(request: NextRequest) {
       range31to45:   Math.round(offices.reduce((s, o) => s + o.range31to45,  0) * 100) / 100,
       range46to60:   Math.round(offices.reduce((s, o) => s + o.range46to60,  0) * 100) / 100,
       range61to90:   Math.round(offices.reduce((s, o) => s + o.range61to90,  0) * 100) / 100,
-      range91plus:   Math.round(offices.reduce((s, o) => s + o.range91plus,  0) * 100) / 100,
+      range91to120:  Math.round(offices.reduce((s, o) => s + o.range91to120,  0) * 100) / 100,
+      range121plus:  Math.round(offices.reduce((s, o) => s + o.range121plus,  0) * 100) / 100,
       total:         Math.round(offices.reduce((s, o) => s + o.total,         0) * 100) / 100,
       dacBalance:    Math.round(offices.reduce((s, o) => s + o.dacBalance,    0) * 100) / 100,
       clientBalance: Math.round(offices.reduce((s, o) => s + o.clientBalance, 0) * 100) / 100,

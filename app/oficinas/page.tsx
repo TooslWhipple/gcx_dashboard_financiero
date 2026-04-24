@@ -5,8 +5,16 @@ import { useOfficeSummary } from '@/hooks/useOfficeSummary';
 
 export const dynamic = 'force-dynamic';
 
+function getLocalDateString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function OficinasPage() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   const { data, isLoading, isError } = useOfficeSummary({
     fechaCorte: today,

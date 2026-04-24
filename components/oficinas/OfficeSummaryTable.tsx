@@ -44,15 +44,19 @@ export function OfficeSummaryTable({ data, className }: OfficeSummaryTableProps)
   const t = data.totals;
   const overduePercent = t.total > 0 ? ((t.overdue / t.total) * 100).toFixed(1) : '0';
 
-  const columns: { key: SortKey; label: string; align?: string; isCurrency?: boolean }[] = [
+  const columns: { key: SortKey; label: string; align?: string; isCurrency?: boolean; isNegative?: boolean }[] = [
     { key: 'name', label: 'Oficina' },
     { key: 'invoiceCount', label: 'Facturas', align: 'center' },
     { key: 'range01to30', label: '01-30', align: 'right', isCurrency: true },
     { key: 'range31to45', label: '31-45', align: 'right', isCurrency: true },
     { key: 'range46to60', label: '46-60', align: 'right', isCurrency: true },
     { key: 'range61to90', label: '61-90', align: 'right', isCurrency: true },
-    { key: 'range91plus', label: '91+', align: 'right', isCurrency: true },
+    { key: 'range91to120', label: '91-120', align: 'right', isCurrency: true },
+    { key: 'range121plus', label: '121+', align: 'right', isCurrency: true },
     { key: 'total', label: 'Total', align: 'right', isCurrency: true },
+    { key: 'dacBalance', label: 'Saldo DAC', align: 'right', isCurrency: true },
+    { key: 'clientBalance', label: 'Saldos Clientes', align: 'right', isCurrency: true, isNegative: true },
+    { key: 'collected', label: 'Cobrado', align: 'right', isCurrency: true },
     { key: 'overdue', label: 'Vencido', align: 'right', isCurrency: true },
   ];
 
@@ -133,14 +137,15 @@ export function OfficeSummaryTable({ data, className }: OfficeSummaryTableProps)
                       const val = office[col.key];
                       const isName = col.key === 'name';
                       const isOverdue = col.key === 'overdue' && (val as number) > 0;
-                      const is91plus = col.key === 'range91plus' && (val as number) > 0;
+                      const is91plus = (col.key === 'range91to120' || col.key === 'range121plus') && (val as number) > 0;
+                      const isNegative = col.isNegative && (val as number) < 0;
                       return (
                         <td
                           key={col.key}
                           className={`px-2 py-1.5 sm:px-3 sm:py-2 font-mono whitespace-nowrap ${
                             isName ? 'font-sans font-medium text-blue-700 sticky left-0 bg-white z-10' :
                             col.align === 'center' ? 'text-center font-sans' : 'text-right'
-                          } ${isOverdue ? 'text-red-600 font-semibold' : ''} ${is91plus ? 'text-red-700 font-semibold' : ''}`}
+                          } ${isOverdue ? 'text-red-600 font-semibold' : ''} ${is91plus ? 'text-red-700 font-semibold' : ''} ${isNegative ? 'text-green-600' : ''}`}
                         >
                           {fmtCell(val, !!col.isCurrency)}
                         </td>

@@ -1,40 +1,15 @@
 // app/api/garantias/tendencia/route.ts
 // API Route para US-008: Tendencia Cartera de Garantías
-// Periodicidad: SEMANAL | Umbral vencido: 45 días
 // GET /api/garantias/tendencia?year=2026&idEmpresa=1
+// Fuente: EXEC dbo.[sp_Tendencia_cartera_Garantias] @Year, @IdEmpresa
+// SP devuelve mensual: Sucursal, Proveedor, Vigente, Vencido, Saldo, Numero (mes)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP } from '@/lib/reco-api';
 
 export const dynamic = 'force-dynamic';
 
 const OVERDUE_THRESHOLD = 45; // días para considerar vencido
-
-// Genera todos los viernes (fin de semana laboral) del año
-function getWeekDates(year: number): { weekNumber: number; weekLabel: string; date: string }[] {
-  const weeks: { weekNumber: number; weekLabel: string; date: string }[] = [];
-  const today = new Date();
-  // Empezar desde el primer lunes del año
-  const start = new Date(year, 0, 1);
-  // Avanzar al primer viernes
-  while (start.getDay() !== 5) start.setDate(start.getDate() + 1);
-
-  let weekNum = 1;
-  const cursor = new Date(start);
-  while (cursor.getFullYear() === year && cursor <= today) {
-    const yyyy = cursor.getFullYear();
-    const mm = String(cursor.getMonth() + 1).padStart(2, '0');
-    const dd = String(cursor.getDate()).padStart(2, '0');
-    weeks.push({
-      weekNumber: weekNum,
-      weekLabel: `Sem.${weekNum}`,
-      date: `${yyyy}-${mm}-${dd}`,
-    });
-    cursor.setDate(cursor.getDate() + 7);
-    weekNum++;
-  }
-  return weeks;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,78 +24,87 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const weekDates = getWeekDates(year);
-    // Últimas 20 semanas
-    const recentWeeks = weekDates.slice(-20);
+    console.log(`[GARANTIAS-TENDENCIA] EXEC sp_Tendencia_cartera_Garantias ${year}, ${idEmpresa}`);
 
-    // Ejecutar en lotes paralelos de 5 para reducir tiempo de respuesta
-    const BATCH_SIZE = 5;
-    const allResults: { week: typeof recentWeeks[0]; rowData: any[] }[] = [];
+    const result = await executeSP(
+      'sp_Tendencia_cartera_Garantias',
+      { Year: year, IdEmpresa: idEmpresa },
+      { useCache: false, retries: 2 }
+    );
 
-    for (let i = 0; i < recentWeeks.length; i += BATCH_SIZE) {
-      const batch = recentWeeks.slice(i, i + BATCH_SIZE);
-      const batchResults = await Promise.all(
-        batch.map(async (week) => {
-          const query = `
-            SELECT
-              sProveedor AS Nombre,
-              DiasTranscurridos,
-              CASE WHEN DiasTranscurridos > ${OVERDUE_THRESHOLD} THEN Saldo ELSE 0 END AS Vencido,
-              CASE WHEN DiasTranscurridos <= ${OVERDUE_THRESHOLD} THEN Saldo ELSE 0 END AS EnProceso,
-              Saldo,
-              sNombreSucursal AS Sucursal
-            FROM dbo.fn_GarantiasPorCobrar('${week.date}', ${idEmpresa})
-            WHERE Saldo > 0
-          `;
-          try {
-            const result = await executeQueryWithRetry(query, { useCache: true, retries: 1 });
-            return { week, rowData: result.success ? (result.data || []) : [] };
-          } catch (e) {
-            console.error(`[GARANTIAS-TENDENCIA] Error semana ${week.weekLabel}:`, e);
-            return { week, rowData: [] };
-          }
-        })
+    if (!result.success || !result.data) {
+      console.error('[GARANTIAS-TENDENCIA] Error del SP:', result.error);
+      return NextResponse.json(
+        { error: 'Error al consultar tendencia de garantías' },
+        { status: 500 }
       );
-      allResults.push(...batchResults);
-      // Pequeña pausa entre lotes
-      if (i + BATCH_SIZE < recentWeeks.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
     }
 
-    // Ordenar por número de semana y construir respuesta
-    allResults.sort((a, b) => a.week.weekNumber - b.week.weekNumber);
+    const rows: any[] = result.data;
+    console.log(`[GARANTIAS-TENDENCIA] ${rows.length} filas del SP`);
+
+    // Agrupar por mes (Numero)
+    const today = new Date();
+    const maxMonth = year < today.getFullYear() ? 12 : today.getMonth() + 1;
+
+    const monthMap = new Map<number, {
+      vigente: number;
+      vencido: number;
+      saldo: number;
+      details: any[];
+    }>();
+
+    for (let m = 1; m <= maxMonth; m++) {
+      monthMap.set(m, { vigente: 0, vencido: 0, saldo: 0, details: [] });
+    }
+
+    rows.forEach((row) => {
+      const mes = row.Numero ?? row.numero ?? row.MES ?? row.Mes ?? 0;
+      if (mes < 1 || mes > maxMonth) return;
+
+      const vigente   = row.Vigente   ?? row.vigente   ?? 0;
+      const vencido   = row.Vencido   ?? row.vencido   ?? 0;
+      const saldo     = row.Saldo     ?? row.saldo     ?? 0;
+      const sucursal  = (row.Sucursal  ?? row.sucursal  ?? row.sNombreSucursal ?? '').toString().trim();
+      const proveedor = (row.Proveedor ?? row.proveedor ?? row.sProveedor     ?? '').toString().trim();
+
+      const entry = monthMap.get(mes)!;
+      entry.vigente += vigente;
+      entry.vencido += vencido;
+      entry.saldo   += saldo;
+      entry.details.push({
+        providerName: proveedor || 'Sin Proveedor',
+        onTime:       Math.round(vigente * 100) / 100,
+        overdue:      Math.round(vencido * 100) / 100,
+        total:        Math.round(saldo   * 100) / 100,
+        branch:       sucursal  || 'Sin Sucursal',
+        weekLabel:    new Date(year, mes - 1).toLocaleString('es-MX', { month: 'short' }),
+      });
+    });
 
     const weeks: any[] = [];
     const tableDetails: any[] = [];
 
-    for (const { week, rowData } of allResults) {
-      const totalPortfolio    = rowData.reduce((s, r) => s + (r.Saldo     || 0), 0);
-      const totalOverdue      = rowData.reduce((s, r) => s + (r.Vencido   || 0), 0);
-      const totalOnTime       = rowData.reduce((s, r) => s + (r.EnProceso || 0), 0);
+    for (let m = 1; m <= maxMonth; m++) {
+      const entry = monthMap.get(m)!;
+      const totalPortfolio    = entry.saldo;
+      const totalOverdue      = entry.vencido;
+      const totalOnTime       = entry.vigente;
       const overduePercentage = totalPortfolio > 0 ? (totalOverdue / totalPortfolio) * 100 : 0;
+      const monthName         = new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' });
 
       weeks.push({
-        weekNumber:         week.weekNumber,
-        weekLabel:          week.weekLabel,
-        date:               week.date,
-        garantiasEnProceso: Math.round(totalOnTime    * 100) / 100,
-        programado:         Math.round(totalPortfolio * 100) / 100,
-        overdue:            Math.round(totalOverdue   * 100) / 100,
-        total:              Math.round(totalPortfolio * 100) / 100,
+        weekNumber:         m,
+        weekLabel:          monthName,
+        date:               `${year}-${String(m).padStart(2, '0')}-01`,
+        garantiasEnProceso: Math.round(totalOnTime       * 100) / 100,
+        programado:         Math.round(totalPortfolio    * 100) / 100,
+        overdue:            Math.round(totalOverdue      * 100) / 100,
+        total:              Math.round(totalPortfolio    * 100) / 100,
         overduePercentage:  Math.round(overduePercentage * 100) / 100,
       });
 
-      rowData.forEach((item: any) => {
-        tableDetails.push({
-          providerName: item.Nombre    || 'Sin Proveedor',
-          onTime:       Math.round((item.EnProceso || 0) * 100) / 100,
-          overdue:      Math.round((item.Vencido   || 0) * 100) / 100,
-          total:        Math.round((item.Saldo     || 0) * 100) / 100,
-          branch:       item.Sucursal || 'Sin Sucursal',
-          weekLabel:    week.weekLabel,
-        });
-      });
+      tableDetails.push(...entry.details);
     }
 
     return NextResponse.json({ weeks, tableData: tableDetails, overdueThreshold: OVERDUE_THRESHOLD });

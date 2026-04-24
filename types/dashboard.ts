@@ -193,7 +193,8 @@ export interface OfficeSummary {
   range31to45: number;
   range46to60: number;
   range61to90: number;
-  range91plus: number;
+  range91to120: number;
+  range121plus: number;
   total: number;
   dacBalance: number;
   clientBalance: number;

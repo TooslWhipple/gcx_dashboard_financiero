@@ -9,11 +9,12 @@ import { AgingAnalysis } from '@/components/charts/AgingAnalysis';
 import { PortfolioTrendChart } from '@/components/charts/PortfolioTrendChart';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import { useAgingData, usePortfolioTrend } from '@/hooks';
+import { getLocalDateString } from '@/lib/date-utils';
 
 export function CarteraOverview() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
   const [selectedFechaCorte, setSelectedFechaCorte] = useState(todayStr);
 
   // US-002: Antigüedad de Cartera
