@@ -22,10 +22,12 @@ export const dynamic = 'force-dynamic';
 async function getMensualData(year: number, idEmpresa: number) {
   console.log(`[FACTURACION-MENSUAL] EXEC sp_Facturacion ${year}, ${idEmpresa}`);
 
+  // useCache: false → siempre datos frescos. El SP es rápido y el mes en curso
+  // cambia minuto a minuto con facturas nuevas / cancelaciones.
   const result = await executeSP(
     'sp_Facturacion',
     { Year: year, IdEmpresa: idEmpresa },
-    { useCache: true, retries: 2 }
+    { useCache: false, retries: 2 }
   );
 
   const rows: any[] = result.success ? (result.data || []) : [];
@@ -34,52 +36,65 @@ async function getMensualData(year: number, idEmpresa: number) {
   const today = new Date();
   const maxMonth = year < today.getFullYear() ? 12 : today.getMonth() + 1;
 
+  type MesAgg = { honorarios: number; otros: number; total: number; pagosHechos: number; anticipos: number; totalCGA: number };
+  const empty = (): MesAgg => ({ honorarios: 0, otros: 0, total: 0, pagosHechos: 0, anticipos: 0, totalCGA: 0 });
+
   // Map mes → totales consolidados
-  const mesMap = new Map<number, { honorarios: number; otros: number; total: number; pagosHechos: number }>();
-  for (let m = 1; m <= maxMonth; m++) {
-    mesMap.set(m, { honorarios: 0, otros: 0, total: 0, pagosHechos: 0 });
-  }
+  const mesMap = new Map<number, MesAgg>();
+  for (let m = 1; m <= maxMonth; m++) mesMap.set(m, empty());
 
   // Map aduana → mes → totales
-  const aduanaMap = new Map<string, Map<number, { honorarios: number; otros: number; total: number }>>();
+  const aduanaMap = new Map<string, Map<number, MesAgg>>();
 
   rows.forEach((row: any) => {
     const mes: number = row.MES ?? row.Mes ?? row.mes ?? 0;
     if (mes < 1 || mes > maxMonth) return;
 
-    const hon     = Math.abs(row.Honorarios    ?? row.honorarios    ?? 0);
-    const otros   = Math.abs(row.OtrosIngresos ?? row.otrosingresos ?? 0);
-    const total   = Math.abs(row.Total         ?? row.total         ?? 0);
-    const pagos   = Math.abs(row.PagosHechos   ?? row.pagoshechos   ?? 0);
-    const oficina = (row.Oficina ?? row.oficina ?? 'Sin Oficina').toString().trim();
+    const hon       = Math.abs(row.Honorarios    ?? row.honorarios    ?? 0);
+    const otros     = Math.abs(row.OtrosIngresos ?? row.otrosingresos ?? 0);
+    const total     = Math.abs(row.Total         ?? row.total         ?? 0);
+    const pagos     = Math.abs(row.PagosHechos   ?? row.pagoshechos   ?? 0);
+    const anticipos = Math.abs(row.Anticipos     ?? row.anticipos     ?? 0);
+    const cga       = Math.abs(row.TotalCGA      ?? row.totalcga      ?? 0);
+    const oficina   = (row.Oficina ?? row.oficina ?? 'Sin Oficina').toString().trim();
 
     // Acumular por mes
     const b = mesMap.get(mes)!;
-    b.honorarios += hon;
-    b.otros      += otros;
-    b.total      += total;
-    b.pagosHechos+= pagos;
+    b.honorarios  += hon;
+    b.otros       += otros;
+    b.total       += total;
+    b.pagosHechos += pagos;
+    b.anticipos   += anticipos;
+    b.totalCGA    += cga;
 
     // Acumular por aduana
     if (!aduanaMap.has(oficina)) aduanaMap.set(oficina, new Map());
     const am = aduanaMap.get(oficina)!;
-    const ab = am.get(mes) ?? { honorarios: 0, otros: 0, total: 0 };
-    ab.honorarios += hon;
-    ab.otros      += otros;
-    ab.total      += total;
+    const ab = am.get(mes) ?? empty();
+    ab.honorarios  += hon;
+    ab.otros       += otros;
+    ab.total       += total;
+    ab.pagosHechos += pagos;
+    ab.anticipos   += anticipos;
+    ab.totalCGA    += cga;
     am.set(mes, ab);
   });
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
 
   // Construir MonthBillingData[]
   const monthlyData: MonthBillingData[] = [];
   for (let m = 1; m <= maxMonth; m++) {
     const b = mesMap.get(m)!;
     monthlyData.push({
-      month:      m,
-      monthName:  new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' }),
-      honorarios: Math.round(b.honorarios * 100) / 100,
-      otros:      Math.round(b.otros      * 100) / 100,
-      total:      Math.round(b.total      * 100) / 100,
+      month:       m,
+      monthName:   new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' }),
+      honorarios:  r2(b.honorarios),
+      otros:       r2(b.otros),
+      total:       r2(b.total),
+      pagosHechos: r2(b.pagosHechos),
+      anticipos:   r2(b.anticipos),
+      totalCGA:    r2(b.totalCGA),
     });
   }
 
@@ -103,13 +118,16 @@ async function getMensualData(year: number, idEmpresa: number) {
   for (const [oficina, mMap] of Array.from(aduanaMap.entries()).sort()) {
     const aduanaMensual: MonthBillingData[] = [];
     for (let m = 1; m <= maxMonth; m++) {
-      const ab = mMap.get(m) ?? { honorarios: 0, otros: 0, total: 0 };
+      const ab = mMap.get(m) ?? empty();
       aduanaMensual.push({
-        month:      m,
-        monthName:  new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' }),
-        honorarios: Math.round(ab.honorarios * 100) / 100,
-        otros:      Math.round(ab.otros      * 100) / 100,
-        total:      Math.round(ab.total      * 100) / 100,
+        month:       m,
+        monthName:   new Date(year, m - 1).toLocaleString('es-MX', { month: 'short' }),
+        honorarios:  r2(ab.honorarios),
+        otros:       r2(ab.otros),
+        total:       r2(ab.total),
+        pagosHechos: r2(ab.pagosHechos),
+        anticipos:   r2(ab.anticipos),
+        totalCGA:    r2(ab.totalCGA),
       });
     }
     const totH  = aduanaMensual.reduce((s, w) => s + w.honorarios, 0);

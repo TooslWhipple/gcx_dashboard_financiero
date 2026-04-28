@@ -222,9 +222,12 @@ export interface AduanaBilling {
 export interface MonthBillingData {
   month: number;
   monthName: string;
-  honorarios: number; // Parte inferior - Azul
-  otros: number;      // Parte superior - Negro
-  total: number;
+  honorarios: number;     // Honorarios (azul, parte inferior de gráfica)
+  otros: number;          // OtrosIngresos / Complementarios (naranja, parte superior)
+  total: number;          // Honorarios + OtrosIngresos
+  pagosHechos?: number;   // PagosHechos del SP mensual
+  anticipos?: number;     // Anticipos del SP mensual
+  totalCGA?: number;      // TotalCGA del SP mensual
 }
 
 // ============================================
