@@ -12,7 +12,7 @@ import { useSidebar } from "./sidebar-context"
 
 const navigation = [
   {
-    name: "Dashboard Principal",
+    name: "Análisis Estratégico IA",
     href: "/",
     icon: LayoutDashboard,
   },
@@ -47,6 +47,7 @@ const navigation = [
     icon: FileText,
   },
 ]
+
 
 interface SidebarProps {
   className?: string
@@ -95,6 +96,7 @@ export function Sidebar({ className }: SidebarProps) {
                 </Link>
               </Button>
             ))}
+
           </div>
         </div>
       </div>
