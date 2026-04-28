@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Receipt, Building2 } from 'lucide-react';
 import { BillingData, AduanaBilling, MonthBillingData } from '@/types/dashboard';
-import { formatCurrency, formatMonthNameShort } from '@/lib/utils/formatters';
+import { formatCurrency } from '@/lib/utils/formatters';
 import { chartAxisColors } from '@/lib/utils/colors';
 
 const COLOR_HONORARIOS = '#3B82F6'; // azul — parte inferior
@@ -24,6 +24,7 @@ interface BillingChartProps {
   data: BillingData;
   title?: string;
   className?: string;
+  view?: 'semanal' | 'mensual';
 }
 
 const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
@@ -57,7 +58,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
   );
 };
 
-export function BillingChart({ data, title = 'Facturación DAC', className }: BillingChartProps) {
+export function BillingChart({ data, title = 'Facturación DAC', className, view = 'semanal' }: BillingChartProps) {
   const [selectedAduanaId, setSelectedAduanaId] = useState<string>('all');
 
   // Seleccionar datos de aduana o agregar todas
@@ -66,44 +67,20 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
       ? data.aduanas.find(a => a.id === 'all') ?? data.aduanas[0]
       : data.aduanas.find(a => a.id === selectedAduanaId) ?? data.aduanas[0];
 
-  const weeklyData = aduanaData?.monthlyData ?? [];
-  
-  // Agrupar datos semanales por mes para la tabla mensual
-  const monthlyMap = new Map<number, { honorarios: number; otros: number; total: number; count: number }>();
-  
-  weeklyData.forEach(week => {
-    // Extraer el mes del número de semana (asumiendo que semana 1-52 corresponde a meses)
-    const weekNum = week.month;
-    const monthNum = Math.ceil(weekNum / 4.33); // Aproximación: 4.33 semanas por mes
-    const adjustedMonth = Math.min(Math.max(monthNum, 1), 12); // Limitar entre 1-12
-    
-    const existing = monthlyMap.get(adjustedMonth) || { honorarios: 0, otros: 0, total: 0, count: 0 };
-    monthlyMap.set(adjustedMonth, {
-      honorarios: existing.honorarios + week.honorarios,
-      otros: existing.otros + week.otros,
-      total: existing.total + week.total,
-      count: existing.count + 1
-    });
-  });
-  
-  const monthlyData = Array.from(monthlyMap.entries()).map(([month, data]) => ({
-    month,
-    monthName: formatMonthNameShort(month),
-    honorarios: Math.round(data.honorarios * 100) / 100,
-    otros: Math.round(data.otros * 100) / 100,
-    total: Math.round(data.total * 100) / 100,
-  })).sort((a, b) => a.month - b.month);
-  
-  const nonZeroWeeks = weeklyData.filter(m => m.total > 0);
-  const nonZeroMonths = monthlyData.filter(m => m.total > 0);
+  const periodData: MonthBillingData[] = aduanaData?.monthlyData ?? [];
+  const isMonthly = view === 'mensual';
+  const periodLabel = isMonthly ? 'Mes' : 'Semana';
 
-  const totalHonorarios = weeklyData.reduce((s, m) => s + m.honorarios, 0);
-  const totalOtros = weeklyData.reduce((s, m) => s + m.otros, 0);
-  const totalGeneral = totalHonorarios + totalOtros;
-  const promedioSemanal = nonZeroWeeks.length > 0 ? totalGeneral / nonZeroWeeks.length : 0;
-  const promedioMensual = nonZeroMonths.length > 0 ? totalGeneral / nonZeroMonths.length : 0;
+  const nonZeroPeriods = periodData.filter(m => m.total > 0);
+  const totalHonorarios  = periodData.reduce((s, m) => s + m.honorarios, 0);
+  const totalOtros       = periodData.reduce((s, m) => s + m.otros, 0);
+  const totalGeneral     = totalHonorarios + totalOtros;
+  const totalPagosHechos = periodData.reduce((s, m) => s + (m.pagosHechos ?? 0), 0);
+  const totalAnticipos   = periodData.reduce((s, m) => s + (m.anticipos   ?? 0), 0);
+  const totalCGA         = periodData.reduce((s, m) => s + (m.totalCGA    ?? 0), 0);
+  const promedioPeriodo  = nonZeroPeriods.length > 0 ? totalGeneral / nonZeroPeriods.length : 0;
 
-  const chartData = weeklyData.map(m => ({
+  const chartData = periodData.map(m => ({
     monthName: m.monthName,
     honorarios: m.honorarios,
     otros: m.otros,
@@ -120,7 +97,7 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
           <div>
             <CardTitle className="text-base sm:text-title-large">{title}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Total de facturación por todas las aduanas DAC — Periodicidad: Semanal
+              Total de facturación por todas las aduanas DAC — Periodicidad: {isMonthly ? 'Mensual' : 'Semanal'}
             </p>
           </div>
         </div>
@@ -145,20 +122,27 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
       </CardHeader>
 
       <CardContent className="p-0 pb-4">
-        {/* ── Tabla semanal ── */}
+        {/* ── Tabla (semanal o mensual según vista) ── */}
         <div className="px-2 sm:px-4 pt-2">
           <div className="overflow-x-auto rounded-lg border border-outline-variant min-w-0">
-            <table className="w-full min-w-[380px] text-xs sm:text-sm">
+            <table className="w-full min-w-[640px] text-xs sm:text-sm">
               <thead>
                 <tr className="bg-blue-700 text-white">
-                  <th className="text-left px-3 py-2 font-semibold sticky left-0 bg-blue-700 z-10">Semana</th>
+                  <th className="text-left px-3 py-2 font-semibold sticky left-0 bg-blue-700 z-10">{periodLabel}</th>
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Honorarios</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Resto</th>
+                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Otros Ingresos</th>
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total</th>
+                  {isMonthly && (
+                    <>
+                      <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Pagos Hechos</th>
+                      <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Anticipos</th>
+                      <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total CGA</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {weeklyData.map(m => (
+                {periodData.map(m => (
                   <tr key={m.monthName} className="hover:bg-gray-50 transition-colors">
                     <td className="px-3 py-1.5 font-medium text-blue-700 sticky left-0 bg-white z-10 whitespace-nowrap">
                       {m.monthName}
@@ -172,6 +156,19 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                     <td className="px-3 py-1.5 text-right font-mono font-semibold whitespace-nowrap">
                       {m.total > 0 ? formatCurrency(m.total) : '—'}
                     </td>
+                    {isMonthly && (
+                      <>
+                        <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap text-gray-700">
+                          {(m.pagosHechos ?? 0) > 0 ? formatCurrency(m.pagosHechos!) : '—'}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap text-purple-700">
+                          {(m.anticipos ?? 0) > 0 ? formatCurrency(m.anticipos!) : '—'}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap text-green-700">
+                          {(m.totalCGA ?? 0) > 0 ? formatCurrency(m.totalCGA!) : '—'}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
                 {/* Fila totales */}
@@ -180,48 +177,13 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
                   <td className="px-3 py-2 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalHonorarios)}</td>
                   <td className="px-3 py-2 text-right font-mono text-orange-700 whitespace-nowrap">{formatCurrency(totalOtros)}</td>
                   <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{formatCurrency(totalGeneral)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Tabla mensual (nueva) ── */}
-        <div className="px-2 sm:px-4 pt-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Corte Mensual</h3>
-          <div className="overflow-x-auto rounded-lg border border-outline-variant min-w-0">
-            <table className="w-full min-w-[380px] text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-green-700 text-white">
-                  <th className="text-left px-3 py-2 font-semibold sticky left-0 bg-green-700 z-10">Mes</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Honorarios</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Resto</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {monthlyData.map(m => (
-                  <tr key={m.monthName} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-1.5 font-medium text-green-700 sticky left-0 bg-white z-10 whitespace-nowrap">
-                      {m.monthName}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap text-blue-700">
-                      {m.honorarios > 0 ? formatCurrency(m.honorarios) : '—'}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap text-orange-700">
-                      {m.otros > 0 ? formatCurrency(m.otros) : '—'}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono font-semibold whitespace-nowrap">
-                      {m.total > 0 ? formatCurrency(m.total) : '—'}
-                    </td>
-                  </tr>
-                ))}
-                {/* Fila totales */}
-                <tr className="bg-green-50 font-bold border-t-2 border-green-300">
-                  <td className="px-3 py-2 sticky left-0 bg-green-50 z-10">Total</td>
-                  <td className="px-3 py-2 text-right font-mono text-blue-700 whitespace-nowrap">{formatCurrency(totalHonorarios)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-orange-700 whitespace-nowrap">{formatCurrency(totalOtros)}</td>
-                  <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{formatCurrency(totalGeneral)}</td>
+                  {isMonthly && (
+                    <>
+                      <td className="px-3 py-2 text-right font-mono text-gray-700 whitespace-nowrap">{formatCurrency(totalPagosHechos)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-purple-700 whitespace-nowrap">{formatCurrency(totalAnticipos)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-green-700 whitespace-nowrap">{formatCurrency(totalCGA)}</td>
+                    </>
+                  )}
                 </tr>
               </tbody>
             </table>
@@ -267,23 +229,35 @@ export function BillingChart({ data, title = 'Facturación DAC', className }: Bi
         </div>
 
         {/* ── Resumen inferior ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-outline-variant mx-2 sm:mx-4">
+        <div className={`grid grid-cols-2 ${isMonthly ? 'sm:grid-cols-6' : 'sm:grid-cols-3'} gap-3 mt-4 pt-4 border-t border-outline-variant mx-2 sm:mx-4`}>
           <div className="text-center p-3 rounded-lg bg-blue-50">
             <p className="text-xs text-blue-700 font-medium">Total Honorarios</p>
             <p className="text-sm sm:text-base text-blue-900 font-semibold">{formatCurrency(totalHonorarios)}</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-orange-50">
-            <p className="text-xs text-orange-700 font-medium">Resto Facturación</p>
+            <p className="text-xs text-orange-700 font-medium">Otros Ingresos</p>
             <p className="text-sm sm:text-base text-orange-900 font-semibold">{formatCurrency(totalOtros)}</p>
           </div>
           <div className="text-center p-3 rounded-lg bg-gray-50">
-            <p className="text-xs text-gray-600 font-medium">Promedio Semanal</p>
-            <p className="text-sm sm:text-base text-gray-900 font-semibold">{formatCurrency(promedioSemanal)}</p>
+            <p className="text-xs text-gray-600 font-medium">Promedio {isMonthly ? 'Mensual' : 'Semanal'}</p>
+            <p className="text-sm sm:text-base text-gray-900 font-semibold">{formatCurrency(promedioPeriodo)}</p>
           </div>
-          <div className="text-center p-3 rounded-lg bg-green-50">
-            <p className="text-xs text-green-700 font-medium">Promedio Mensual</p>
-            <p className="text-sm sm:text-base text-green-900 font-semibold">{formatCurrency(promedioMensual)}</p>
-          </div>
+          {isMonthly && (
+            <>
+              <div className="text-center p-3 rounded-lg bg-gray-50">
+                <p className="text-xs text-gray-600 font-medium">Total Pagos Hechos</p>
+                <p className="text-sm sm:text-base text-gray-900 font-semibold">{formatCurrency(totalPagosHechos)}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-purple-50">
+                <p className="text-xs text-purple-700 font-medium">Total Anticipos</p>
+                <p className="text-sm sm:text-base text-purple-900 font-semibold">{formatCurrency(totalAnticipos)}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-50">
+                <p className="text-xs text-green-700 font-medium">Total CGA</p>
+                <p className="text-sm sm:text-base text-green-900 font-semibold">{formatCurrency(totalCGA)}</p>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
