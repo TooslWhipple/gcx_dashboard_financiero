@@ -42,13 +42,17 @@ export async function GET(request: NextRequest) {
     // Inicializar meses 1-12
     const today = new Date();
     const maxMonth = year < today.getFullYear() ? 12 : today.getMonth() + 1;
-    const monthMap = new Map<number, { pending: number; invoiced: number }>();
-    for (let m = 1; m <= maxMonth; m++) {
-      monthMap.set(m, { pending: 0, invoiced: 0 });
-    }
 
-    // Tabla de detalle por Unidad+Oficina (agrupación cross-mes)
-    const detailMap = new Map<string, FinancingDetail>();
+    // ── Paso 1: Deduplicar/agregar por Unidad + Oficina + MES ──
+    // El SP fn_Tendencia_Financiamiento produce producto cartesiano por Unidad;
+    // agrupamos por (Unidad, Oficina, MES) para obtener valores correctos.
+    const dedupMap = new Map<string, {
+      unit: string;
+      office: string;
+      mes: number;
+      pte: number;
+      fac: number;
+    }>();
 
     for (const row of rows) {
       const mes: number = row.MES ?? row.Mes ?? row.mes ?? 0;
@@ -59,19 +63,45 @@ export async function GET(request: NextRequest) {
       const unit   = (row.Unidad ?? row.unidad ?? 'General').toString().trim();
       const office = (row.Oficina ?? row.oficina ?? 'Sin Oficina').toString().trim();
 
-      // Acumular por mes
-      const bucket = monthMap.get(mes)!;
-      bucket.pending  += pte;
-      bucket.invoiced += fac;
+      const key = `${unit}|${office}|${mes}`;
+      const existing = dedupMap.get(key);
+      if (existing) {
+        existing.pte += pte;
+        existing.fac += fac;
+      } else {
+        dedupMap.set(key, { unit, office, mes, pte, fac });
+      }
+    }
 
-      // Acumular detalle por unidad+oficina
-      const key = `${unit}|${office}`;
+    // ── Paso 2: Acumular por mes para la gráfica ──
+    const monthMap = new Map<number, { pending: number; invoiced: number }>();
+    for (let m = 1; m <= maxMonth; m++) {
+      monthMap.set(m, { pending: 0, invoiced: 0 });
+    }
+
+    // Tabla de detalle por Unidad+Oficina+MES
+    const detailMap = new Map<string, FinancingDetail>();
+
+    for (const d of dedupMap.values()) {
+      // Acumular por mes (gráfica)
+      const bucket = monthMap.get(d.mes)!;
+      bucket.pending  += d.pte;
+      bucket.invoiced += d.fac;
+
+      // Acumular detalle por unidad+oficina (cross-mes, para tabla resumen)
+      const key = `${d.unit}|${d.office}`;
       const existing = detailMap.get(key);
       if (existing) {
-        existing.pendingInvoice += pte;
-        existing.invoiced       += fac;
+        existing.pendingInvoice += d.pte;
+        existing.invoiced       += d.fac;
       } else {
-        detailMap.set(key, { unit, office, pendingInvoice: pte, invoiced: fac, month: 0 });
+        detailMap.set(key, {
+          unit: d.unit,
+          office: d.office,
+          pendingInvoice: d.pte,
+          invoiced: d.fac,
+          month: d.mes,
+        });
       }
     }
 

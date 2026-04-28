@@ -2,11 +2,13 @@
 // US-006: Resumen Corporativo por Oficina
 // Replaces sp_Resumen to support 31-45 and 46-60 splits natively via UDF
 
+import { getMexicoDateString } from '../date-utils';
+
 export function buildResumenOficinasQuery(fechaCorte: string, idEmpresa: number = 1): string {
   // Validate basic date format to prevent SQL injection or bad formatting
-  const safeFechaCorte = /^\d{4}-\d{2}-\d{2}$/.test(fechaCorte) 
-    ? fechaCorte 
-    : new Date().toISOString().split('T')[0];
+  const safeFechaCorte = /^\d{4}-\d{2}-\d{2}$/.test(fechaCorte)
+    ? fechaCorte
+    : getMexicoDateString();
 
   return `
     WITH Base AS (
@@ -16,7 +18,7 @@ export function buildResumenOficinasQuery(fechaCorte: string, idEmpresa: number 
     )
     SELECT
          Unidad
-        ,'DAC -' + NombreSucursal AS [Oficina]
+        ,'DAC - ' + NombreSucursal AS [Oficina]
         ,COUNT(Unidad) AS [Fact]
         ,SUM(CASE WHEN DiasTranscurridos <=30 THEN Saldo ELSE 0 END)                AS [01-30]
         ,SUM(CASE WHEN DiasTranscurridos BETWEEN 31 AND 45 THEN Saldo ELSE 0 END)   AS [31-45]

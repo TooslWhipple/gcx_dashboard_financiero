@@ -251,14 +251,16 @@ export async function executeSP(
   params: Record<string, string | number>,
   options: { useCache?: boolean; retries?: number } = {}
 ): Promise<RecoQueryResult> {
+  // Formato IDÉNTICO al que usa Postman (sin espacios alrededor de '=' y sin ';' final).
+  // El backend RECO cachea por string exacto; cualquier diferencia cae en otra entrada de caché.
   const paramStr = Object.entries(params).map(([name, value]) => {
     const val = typeof value === 'number'
       ? String(value)
       : `'${String(value).replace(/'/g, "''")}'`;
-    return `@${name} = ${val}`;
+    return `@${name}=${val}`;
   }).join(', ');
 
-  const query = `EXEC dbo.${spName} ${paramStr};`;
+  const query = `EXEC dbo.${spName} ${paramStr}`;
   console.log(`[EXEC SP] ${query.substring(0, 150)}`);
   return executeQueryWithRetry(query, options);
 }

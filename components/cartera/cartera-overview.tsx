@@ -9,15 +9,17 @@ import { AgingAnalysis } from '@/components/charts/AgingAnalysis';
 import { PortfolioTrendChart } from '@/components/charts/PortfolioTrendChart';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import { useAgingData, usePortfolioTrend } from '@/hooks';
+import { getLocalDateString } from '@/lib/date-utils';
 
 export function CarteraOverview() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
+  const [selectedFechaCorte, setSelectedFechaCorte] = useState(todayStr);
 
   // US-002: Antigüedad de Cartera
   const { data: agingData, isLoading: isLoadingAging, isError: isErrorAging } = useAgingData({
-    fechaCorte: todayStr,
+    fechaCorte: selectedFechaCorte,
     idEmpresa: 1,
   });
 
@@ -30,18 +32,29 @@ export function CarteraOverview() {
   return (
     <div className="space-y-8">
 
-      {/* Selector de año (aplica a US-003) */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-muted-foreground">Año (Tendencia CXC):</label>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="px-3 py-2 bg-surface-container rounded-lg border border-outline-variant text-on-surface focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-        >
-          {Array.from({ length: 5 }, (_, i) => currentYear - i).map((yr) => (
-            <option key={yr} value={yr}>{yr}</option>
-          ))}
-        </select>
+      {/* Selectores de fecha y año */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Fecha de corte (Antigüedad):</label>
+          <input
+            type="date"
+            value={selectedFechaCorte}
+            onChange={(e) => setSelectedFechaCorte(e.target.value)}
+            className="px-3 py-2 bg-surface-container rounded-lg border border-outline-variant text-on-surface focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Año (Tendencia CXC):</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-3 py-2 bg-surface-container rounded-lg border border-outline-variant text-on-surface focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          >
+            {Array.from({ length: 5 }, (_, i) => currentYear - i).map((yr) => (
+              <option key={yr} value={yr}>{yr}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* US-002: Antigüedad de Cartera */}

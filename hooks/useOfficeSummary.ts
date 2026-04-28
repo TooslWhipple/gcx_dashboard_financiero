@@ -25,7 +25,9 @@ export function useOfficeSummary(params: OfficeSummaryParams, enabled = true) {
     queryKey: ['officeSummary', params.fechaCorte, params.idEmpresa],
     queryFn: () => fetchOfficeSummary(params),
     enabled,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }

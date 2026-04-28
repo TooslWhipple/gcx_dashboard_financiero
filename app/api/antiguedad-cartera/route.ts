@@ -6,10 +6,10 @@
 //   [61-90], [91-120], [121-500 Dias], CO(Total), NombreSucursal
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP } from '@/lib/reco-api';
 import { AgingData, AgingBucket, AgingDetail, AgingRange } from '@/types/dashboard';
 import { agingRiskColors } from '@/lib/utils/colors';
-import { buildAntiguedadCarteraQuery } from '@/lib/queries/antiguedad-cartera';
+import { getMexicoDateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ const AGING_RANGES: { range: AgingRange; col: string }[] = [
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const fechaCorte = searchParams.get('fechaCorte') || new Date().toISOString().split('T')[0];
+    const fechaCorte = searchParams.get('fechaCorte') || getMexicoDateString();
     const idEmpresa = parseInt(searchParams.get('idEmpresa') || '1');
 
     if (!fechaCorte || isNaN(idEmpresa)) {
@@ -35,13 +35,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Construir query directa (reemplaza EXEC sp_Antiguedad_cartera)
-    const query = buildAntiguedadCarteraQuery(fechaCorte, idEmpresa);
-    console.log(`[ANTIGUEDAD-CARTERA] Query directa fechaCorte='${fechaCorte}', empresa=${idEmpresa}`);
-
-    const result = await executeQueryWithRetry(
-      query,
-      { useCache: true, retries: 2 }
+    // Ejecutar SP original (igual que Postman) — sin caché para datos frescos
+    console.log(`[ANTIGUEDAD-CARTERA] EXEC sp_Antiguedad_cartera @FechaCorte='${fechaCorte}', @IdEmpresa=${idEmpresa}`);
+    const result = await executeSP(
+      'sp_Antiguedad_cartera',
+      { FechaCorte: fechaCorte, IdEmpresa: idEmpresa },
+      { useCache: false, retries: 2 }
     );
 
     if (!result.success || !result.data) {
@@ -59,7 +58,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(fallbackResponse);
     }
 
-    const rows: any[] = result.data;
+    // Normalizar: si result.data es array de arrays (múltiples recordsets), aplanar
+    let rows: any[] = result.data;
+    if (Array.isArray(rows) && rows.length > 0 && Array.isArray(rows[0])) {
+      rows = rows.flat();
+    }
+
     console.log(`[ANTIGUEDAD-CARTERA] ${rows.length} clientes recibidos de la query`);
 
     // ─── Gráfica por rangos ─────────────────────────────────────────────────
