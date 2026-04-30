@@ -1,7 +1,7 @@
 // lib/auth.ts
 // Utilidades de autenticacion: bcrypt + JWT (jose, Edge-compatible) + cookies httpOnly
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 

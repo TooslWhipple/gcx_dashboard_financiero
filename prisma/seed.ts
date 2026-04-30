@@ -2,7 +2,7 @@
 // Seed para crear el usuario general unico de GCX Dashboard
 
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
