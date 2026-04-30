@@ -3,7 +3,6 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import { AppShell } from "@/components/layout/app-shell"
 import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -23,7 +22,7 @@ export default function RootLayout({
     <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans">
         <Providers>
-          <AppShell>{children}</AppShell>
+          {children}
           <Analytics />
         </Providers>
       </body>
