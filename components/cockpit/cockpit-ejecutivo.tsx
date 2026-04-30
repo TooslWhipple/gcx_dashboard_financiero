@@ -4,7 +4,7 @@
 // Cockpit Ejecutivo GCX — single consolidated client component.
 // Consumes the SDD contract from `lib/cockpit/contract`.
 
-import { Sparkles, AlertTriangle, ShieldCheck, Activity, FileText } from "lucide-react";
+import { Sparkles, AlertTriangle, ShieldCheck, Activity, FileText, RefreshCw } from "lucide-react";
 import type {
   DashboardData,
   KpiData,
@@ -215,7 +215,15 @@ function ActionItem({ item }: { item: ActionPlanItem }) {
 // ─────────────────────────────────────────────────────────────────
 // Main view
 // ─────────────────────────────────────────────────────────────────
-export function CockpitEjecutivo({ data }: { data: DashboardData }) {
+export function CockpitEjecutivo({
+  data,
+  onRefresh,
+  isLoading = false,
+}: {
+  data: DashboardData;
+  onRefresh?: () => void;
+  isLoading?: boolean;
+}) {
   const generated = new Date(data.generatedAt);
   return (
     <div className="space-y-6" style={{ color: "#0f172a", fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -233,15 +241,27 @@ export function CockpitEjecutivo({ data }: { data: DashboardData }) {
             Resumen directivo de cobranza, cartera, financiamiento, garantías y facturación.
           </p>
         </div>
-        <div
-          className="bg-white px-5 py-3 border border-slate-100"
-          style={card}
-        >
-          <p className="text-xs font-semibold text-slate-500">Corte visual analizado</p>
-          <p className="text-sm font-medium text-[#0f172a]">{data.cutoffLabel}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">
-            Generado: {generated.toLocaleString("es-MX")}
-          </p>
+        <div className="flex items-center gap-3">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-[#07185d] text-white text-sm font-medium rounded-lg hover:bg-[#0a2375] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Actualizando...' : 'Actualizar datos'}
+            </button>
+          )}
+          <div
+            className="bg-white px-5 py-3 border border-slate-100"
+            style={card}
+          >
+            <p className="text-xs font-semibold text-slate-500">Corte visual analizado</p>
+            <p className="text-sm font-medium text-[#0f172a]">{data.cutoffLabel}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Generado: {generated.toLocaleString("es-MX")}
+            </p>
+          </div>
         </div>
       </div>
 
