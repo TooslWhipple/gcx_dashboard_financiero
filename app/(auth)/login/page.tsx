@@ -1,7 +1,12 @@
 // app/(auth)/login/page.tsx
 // Pagina de login standalone.
 
+import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
+
+// LoginForm usa useSearchParams() para leer ?redirect=...
+// Forzamos render dinamico para evitar el prerender estatico.
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Iniciar sesion - GCX Dashboard',
@@ -28,7 +33,9 @@ export default function LoginPage() {
             Acceso a informacion financiera corporativa
           </p>
         </div>
-        <LoginForm />
+        <Suspense fallback={<div className="h-48" />}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );
