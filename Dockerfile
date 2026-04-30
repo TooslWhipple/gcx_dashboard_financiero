@@ -10,8 +10,14 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias
+# Copiar el esquema Prisma antes para que `prisma generate` lo encuentre
+COPY prisma ./prisma
+
+# Instalar dependencias (los build scripts de Prisma quedan ignorados por pnpm)
 RUN pnpm install --frozen-lockfile
+
+# Generar Prisma Client manualmente (pnpm bloquea el postinstall por seguridad)
+RUN pnpm prisma generate
 
 # Copiar todo el código fuente
 COPY . .
@@ -33,6 +39,11 @@ ENV HOSTNAME="0.0.0.0"
 COPY --from=base /app/.next/standalone ./
 COPY --from=base /app/.next/static ./.next/static
 COPY --from=base /app/public ./public
+
+# Copiar Prisma Client generado y schema (standalone no siempre los incluye)
+COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=base /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=base /app/prisma ./prisma
 
 # Exponer puerto
 EXPOSE 3000
