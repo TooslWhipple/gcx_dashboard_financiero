@@ -66,7 +66,7 @@ export function Sidebar({ className }: SidebarProps) {
             {collapsed ? (
               <span className="text-lg font-bold text-primary">G</span>
             ) : (
-              <img src="/images/gcx-logo.png" alt="GCX Logo" className="h-12 w-auto" />
+              <img src="/placeholder-logo.png" alt="GCX Logo" className="h-12 w-auto" />
             )}
           </div>
 
