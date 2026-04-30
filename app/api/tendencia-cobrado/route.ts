@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[TENDENCIA-COBRADO] Query directa año ${year}, empresa ${idEmpresa}`);
     console.log(`[TENDENCIA-COBRADO] Query directa año ${year - 1}, empresa ${idEmpresa}`);
+    console.log(`[TENDENCIA-COBRADO] DEBUG SQL año anterior:\n${previousQuery}`);
 
     // Dos llamadas paralelas: año actual y año anterior
     const [currentResult, previousResult] = await Promise.all([
@@ -89,7 +90,13 @@ export async function GET(request: NextRequest) {
     const currentRows = currentResult.success ? (currentResult.data || []) : [];
     const previousRows = previousResult.success ? (previousResult.data || []) : [];
 
+    // DEBUG: log detallado para diagnosticar año anterior vacío
     console.log(`[TENDENCIA-COBRADO] Filas año ${year}: ${currentRows.length}, año ${year - 1}: ${previousRows.length}`);
+    if (!previousResult.success) {
+      console.error(`[TENDENCIA-COBRADO] ERROR año ${year - 1}: ${previousResult.error}`);
+    } else if (!previousResult.data || previousResult.data.length === 0) {
+      console.warn(`[TENDENCIA-COBRADO] Año ${year - 1} devolvió 0 filas desde RECO`);
+    }
 
     const currentYearData = buildMonthlyTrend(currentRows, year);
     const previousYearData = buildMonthlyTrend(previousRows, year - 1);
