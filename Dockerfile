@@ -24,6 +24,9 @@ RUN pnpm prisma generate
 # Construir la aplicación
 RUN pnpm build
 
+# Copiar estáticos al directorio standalone (Next.js standalone a veces no los incluye)
+RUN mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static 2>/dev/null || true
+
 # Variables de entorno para producción
 ENV NODE_ENV=production
 ENV PORT=3000
@@ -32,5 +35,5 @@ ENV HOSTNAME="0.0.0.0"
 # Exponer puerto
 EXPOSE 3000
 
-# Comando para iniciar
+# Comando para iniciar (desde /app para que encuentre .next/static)
 CMD ["node", ".next/standalone/server.js"]
