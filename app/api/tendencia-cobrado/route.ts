@@ -1,17 +1,16 @@
 // app/api/tendencia-cobrado/route.ts
 // API Route para US-001: Tendencia Cobrado con comparativo año pasado
 // GET /api/tendencia-cobrado?year=2026&idEmpresa=1
-// Fuente: Query directa con CROSS APPLY a fn_CGA_Cobrados (reemplaza sp_Tendencia_Cobrado)
-// Query devuelve: nIdCtaGastos15, nIdEmp11, nIdSuc12, Sucursal, Factura,
-//                 FechaFactura, ClaveCliente, RFCCliente, Cliente,
-//                 ClaveClienteFacturarA, RFCClienteFacturarA, ClienteFacturarA,
-//                 FechaPago, GastosME_Cob, IngresosME_Cob, TotalCobrado
+// Fuente: EXEC dbo.sp_Tendencia_Cobrado @Year, @IdEmpresa
+// SP devuelve: nIdCtaGastos15, nIdEmp11, nIdSuc12, Sucursal, Factura,
+//              FechaFactura, ClaveCliente, RFCCliente, Cliente,
+//              ClaveClienteFacturarA, RFCClienteFacturarA, ClienteFacturarA,
+//              FechaPago, GastosME_Cob, IngresosME_Cob, TotalCobrado
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP } from '@/lib/reco-api';
 import { CollectionTrendData, MonthlyCollectionData } from '@/types/dashboard';
 import { formatMonthName } from '@/lib/utils/formatters';
-import { buildTendenciaCobradoQuery } from '@/lib/queries/tendencia-cobrado';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,18 +72,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Construir queries directas (reemplaza EXEC sp_Tendencia_Cobrado)
-    const currentQuery = buildTendenciaCobradoQuery(year, idEmpresa);
-    const previousQuery = buildTendenciaCobradoQuery(year - 1, idEmpresa);
-
-    console.log(`[TENDENCIA-COBRADO] Query directa año ${year}, empresa ${idEmpresa}`);
-    console.log(`[TENDENCIA-COBRADO] Query directa año ${year - 1}, empresa ${idEmpresa}`);
-    console.log(`[TENDENCIA-COBRADO] DEBUG SQL año anterior:\n${previousQuery}`);
+    console.log(`[TENDENCIA-COBRADO] EXEC sp_Tendencia_Cobrado @Year=${year}, @IdEmpresa=${idEmpresa}`);
+    console.log(`[TENDENCIA-COBRADO] EXEC sp_Tendencia_Cobrado @Year=${year - 1}, @IdEmpresa=${idEmpresa}`);
 
     // Dos llamadas paralelas: año actual y año anterior
     const [currentResult, previousResult] = await Promise.all([
-      executeQueryWithRetry(currentQuery, { useCache: true, retries: 2 }),
-      executeQueryWithRetry(previousQuery, { useCache: true, retries: 2 }),
+      executeSP('sp_Tendencia_Cobrado', { Year: year, IdEmpresa: idEmpresa }, { useCache: true, retries: 2 }),
+      executeSP('sp_Tendencia_Cobrado', { Year: year - 1, IdEmpresa: idEmpresa }, { useCache: true, retries: 2 }),
     ]);
 
     const currentRows = currentResult.success ? (currentResult.data || []) : [];
@@ -92,6 +86,9 @@ export async function GET(request: NextRequest) {
 
     // DEBUG: log detallado para diagnosticar año anterior vacío
     console.log(`[TENDENCIA-COBRADO] Filas año ${year}: ${currentRows.length}, año ${year - 1}: ${previousRows.length}`);
+    if (!currentResult.success) {
+      console.error(`[TENDENCIA-COBRADO] ERROR año ${year}: ${currentResult.error}`);
+    }
     if (!previousResult.success) {
       console.error(`[TENDENCIA-COBRADO] ERROR año ${year - 1}: ${previousResult.error}`);
     } else if (!previousResult.data || previousResult.data.length === 0) {
