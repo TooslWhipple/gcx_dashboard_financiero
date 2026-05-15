@@ -21,7 +21,7 @@ export interface MonthlyCollectionData {
 // ============================================
 // US-002: Antigüedad Cartera
 // ============================================
-export type AgingRange = '1-30' | '31-60' | '61-90' | '91-120' | '121-5000';
+export type AgingRange = 'Vigente' | '1-30' | '31-60' | '61-90' | '91-120' | '121-5000';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 export interface AgingData {
@@ -41,6 +41,7 @@ export interface AgingBucket {
 export interface AgingDetail {
   clientName: string;
   rfc: string;
+  vigente: number;
   range1to30: number;
   range31to60: number;
   range61to90: number;

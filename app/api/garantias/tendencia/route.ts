@@ -43,6 +43,34 @@ export async function GET(request: NextRequest) {
     const rows: any[] = result.data;
     console.log(`[GARANTIAS-TENDENCIA] ${rows.length} filas del SP`);
 
+    // DEBUG: log primeras 5 filas raw para diagnosticar estructura y valores
+    if (rows.length > 0) {
+      console.log('[GARANTIAS-TENDENCIA] Muestra filas raw:', rows.slice(0, 5).map((r) => ({
+        mes: r.Numero ?? r.numero ?? r.MES ?? r.Mes,
+        vigente: r.Vigente ?? r.vigente,
+        vencido: r.Vencido ?? r.vencido,
+        saldo: r.Saldo ?? r.saldo,
+        sucursal: r.Sucursal ?? r.sucursal ?? r.sNombreSucursal,
+        proveedor: r.Proveedor ?? r.proveedor ?? r.sProveedor,
+      })));
+    }
+
+    // Validar que Vigente + Vencido ~= Saldo en cada fila
+    let mismatchCount = 0;
+    rows.forEach((row) => {
+      const vigente = row.Vigente ?? row.vigente ?? 0;
+      const vencido = row.Vencido ?? row.vencido ?? 0;
+      const saldo   = row.Saldo   ?? row.saldo   ?? 0;
+      const suma = Math.round((vigente + vencido) * 100) / 100;
+      const saldoRounded = Math.round(saldo * 100) / 100;
+      if (Math.abs(suma - saldoRounded) > 0.01) {
+        mismatchCount++;
+      }
+    });
+    if (mismatchCount > 0) {
+      console.warn(`[GARANTIAS-TENDENCIA] ${mismatchCount} de ${rows.length} filas tienen Vigente+Vencido != Saldo`);
+    }
+
     // Agrupar por mes (Numero)
     const today = new Date();
     const maxMonth = year < today.getFullYear() ? 12 : today.getMonth() + 1;
