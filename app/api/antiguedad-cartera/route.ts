@@ -6,7 +6,7 @@
 //   [61-90], [91-120], [121-500 Dias], CO(Total), NombreSucursal
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeSP, executeQueryWithRetry } from '@/lib/reco-api';
+import { executeSP } from '@/lib/reco-api';
 import { AgingData, AgingBucket, AgingDetail, AgingRange } from '@/types/dashboard';
 import { agingRiskColors } from '@/lib/utils/colors';
 import { getMexicoDateString } from '@/lib/date-utils';
@@ -37,13 +37,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Ejecutar SP original (igual que Postman) — sin caché para datos frescos
-    // Usamos executeQueryWithRetry con un comentario que incluye timestamp
-    // para invalidar la caché del API RECO (que cachea por string exacto de query).
-    const now = new Date();
-    const tsComment = `/*ts:${now.toISOString().slice(0,16)}*/`; // truncado a minutos
-    const query = `${tsComment}EXEC dbo.sp_Antiguedad_cartera @FechaCorte='${fechaCorte}', @IdEmpresa=${idEmpresa}`;
-    console.log(`[ANTIGUEDAD-CARTERA] ${query.substring(0, 150)}`);
-    const result = await executeQueryWithRetry(query, { useCache: false, retries: 2 });
+    console.log(`[ANTIGUEDAD-CARTERA] EXEC sp_Antiguedad_cartera @FechaCorte='${fechaCorte}', @IdEmpresa=${idEmpresa}`);
+    const result = await executeSP(
+      'sp_Antiguedad_cartera',
+      { FechaCorte: fechaCorte, IdEmpresa: idEmpresa },
+      { useCache: false, retries: 2 }
+    );
 
     if (!result.success || !result.data) {
       console.error('[ANTIGUEDAD-CARTERA] Error de la query:', result.error);
