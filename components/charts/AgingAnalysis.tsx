@@ -31,6 +31,8 @@ export function AgingAnalysis({
   const filteredTableData = selectedRange
     ? data.tableData.filter((row) => {
         switch (selectedRange) {
+          case 'Vigente':
+            return row.vigente > 0;
           case '1-30':
             return row.range1to30 > 0;
           case '31-60':
@@ -77,8 +79,9 @@ export function AgingAnalysis({
   const detailColumns = [
     { key: 'clientName', label: 'Cliente', sortable: true, width: '25%' },
     { key: 'rfc', label: 'RFC', sortable: true, width: '15%' },
-    { key: 'range1to30', label: '1-30 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
-    { key: 'range31to60', label: '31-60 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
+    { key: 'vigente', label: 'Vigente', sortable: true, align: 'right' as const, format: 'currency' as const, width: '10%', cellClassName: 'bg-green-50 text-green-700 font-medium' },
+    { key: 'range1to30', label: '1-30 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '10%' },
+    { key: 'range31to60', label: '31-60 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '10%' },
     { key: 'range61to90', label: '61-90 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
     { key: 'range91to120', label: '91-120 días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%' },
     { key: 'range121plus', label: '121+ días', sortable: true, align: 'right' as const, format: 'currency' as const, width: '12%', cellClassName: 'bg-red-50 text-red-700 font-medium' },

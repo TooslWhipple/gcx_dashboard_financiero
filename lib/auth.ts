@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 const SALT_ROUNDS = 12;
 const JWT_SECRET = process.env.JWT_SECRET || '';
 export const COOKIE_NAME = 'gcx_session';
-const COOKIE_MAX_AGE = 8 * 60 * 60; // 8 horas
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 días
 
 function getSecret() {
   if (!JWT_SECRET || JWT_SECRET.length < 32) {
@@ -30,7 +30,7 @@ export async function createToken(username: string): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setIssuer('gcx-dashboard')
-    .setExpirationTime('8h')
+    .setExpirationTime('7d')
     .sign(getSecret());
 }
 

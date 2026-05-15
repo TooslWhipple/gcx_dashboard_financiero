@@ -109,6 +109,8 @@ export function GarantiasOverview() {
             chartData={agingData.chartData}
             totalAmount={agingData.totalAmount}
             fechaCorte={agingData.fechaCorte}
+            bucketsSum={agingData.bucketsSum}
+            difference={agingData.difference}
           />
         ) : (
           <LoadingState message="Sin datos de antigüedad disponibles." />

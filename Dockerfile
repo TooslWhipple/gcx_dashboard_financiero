@@ -26,6 +26,7 @@ RUN pnpm build
 
 # Copiar estáticos al directorio standalone (Next.js standalone a veces no los incluye)
 RUN mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static 2>/dev/null || true
+RUN cp -r public .next/standalone/ 2>/dev/null || true
 
 # Variables de entorno para producción
 ENV NODE_ENV=production

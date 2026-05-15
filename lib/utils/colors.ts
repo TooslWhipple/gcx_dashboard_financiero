@@ -56,6 +56,12 @@ export const chartColors = {
 // Aging Risk Colors (US-002)
 // ============================================
 export const agingRiskColors: Record<AgingRange, { fill: string; text: string; risk: RiskLevel; label: string }> = {
+  'Vigente': {
+    fill: '#2E7D32',      // Green-700 (darker than 1-30 to show it's even safer)
+    text: '#1B5E20',      // Green-900
+    risk: 'low',
+    label: 'Vigente',
+  },
   '1-30': {
     fill: '#4CAF50',      // Green-500
     text: '#1B5E20',      // Green-900

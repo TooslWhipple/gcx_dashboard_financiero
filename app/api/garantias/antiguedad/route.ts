@@ -11,6 +11,7 @@ import { getMexicoDateString } from '@/lib/date-utils';
 export const dynamic = 'force-dynamic';
 
 const AGING_COLORS: Record<string, string> = {
+  'Vigente':  '#2E7D32', // verde oscuro
   '1-30':     '#FFEB3B', // amarillo
   '31-60':    '#4CAF50', // verde
   '61-90':    '#2196F3', // azul
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Sumar rangos de todas las filas (Sucursal+Proveedor) para obtener totales globales
     const buckets: Record<string, { amount: number; count: number }> = {
+      'Vigente':  { amount: 0, count: 0 },
       '1-30':     { amount: 0, count: 0 },
       '31-60':    { amount: 0, count: 0 },
       '61-90':    { amount: 0, count: 0 },
@@ -55,14 +57,18 @@ export async function GET(request: NextRequest) {
     let totalAmount = 0;
 
     rows.forEach((row) => {
-      const r0130   = row['01-30']        ?? row['0130']        ?? 0;
-      const r3160   = row['31-60']        ?? row['3160']        ?? 0;
-      const r6190   = row['61-90']        ?? row['6190']        ?? 0;
-      const r91120  = row['91-120']       ?? row['91120']       ?? 0;
-      const r121    = row['121-500 Dias'] ?? row['121500Dias']  ?? row['121-5000'] ?? 0;
-      const saldo   = row['Saldo']        ?? row['saldo']       ?? 0;
+      const rVigente = row['Vigente']     ?? row['vigente']     ?? 0;
+      const r0130    = row['01-30']        ?? row['0130']        ?? 0;
+      const r3160    = row['31-60']        ?? row['3160']        ?? 0;
+      const r6190    = row['61-90']        ?? row['6190']        ?? 0;
+      const r91120   = row['91-120']       ?? row['91120']       ?? 0;
+      const r121     = row['121-500 Dias'] ?? row['121500Dias']  ?? row['121-5000'] ?? 0;
+      const saldo    = row['Saldo']        ?? row['saldo']       ?? 0;
 
       totalAmount += saldo;
+
+      buckets['Vigente'].amount  += rVigente;
+      if (rVigente > 0)           buckets['Vigente'].count++;
 
       buckets['1-30'].amount     += r0130;
       if (r0130 > 0)              buckets['1-30'].count++;
@@ -81,6 +87,10 @@ export async function GET(request: NextRequest) {
     });
 
     const bucketsSum = Object.values(buckets).reduce((s, b) => s + b.amount, 0);
+    const difference = Math.round((totalAmount - bucketsSum) * 100) / 100;
+    if (Math.abs(difference) > 0.01) {
+      console.warn(`[GARANTIAS-ANTIGUEDAD] Discrepancia detectada: totalAmount=${totalAmount}, bucketsSum=${bucketsSum}, diff=${difference}`);
+    }
 
     // % sobre bucketsSum para que sumen 100% (totalAmount = SUM(Saldo) puede diferir)
     const chartData = Object.entries(buckets).map(([range, b]) => ({
@@ -94,6 +104,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       chartData,
       totalAmount: Math.round(totalAmount * 100) / 100,
+      bucketsSum: Math.round(bucketsSum * 100) / 100,
+      difference,
       fechaCorte,
     });
   } catch (error) {

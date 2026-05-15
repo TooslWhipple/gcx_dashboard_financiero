@@ -15,10 +15,11 @@ export const dynamic = 'force-dynamic';
 
 // Rangos que expone la query — coinciden con las columnas que devuelve
 const AGING_RANGES: { range: AgingRange; col: string }[] = [
+  { range: 'Vigente',  col: 'Vigente' },
   { range: '1-30',     col: '01-30' },
-  { range: '31-60',   col: '31-60' },
-  { range: '61-90',   col: '61-90' },
-  { range: '91-120',  col: '91-120' },
+  { range: '31-60',    col: '31-60' },
+  { range: '61-90',    col: '61-90' },
+  { range: '91-120',   col: '91-120' },
   { range: '121-5000', col: '121-500 Dias' },
 ];
 
@@ -69,17 +70,33 @@ export async function GET(request: NextRequest) {
     // ─── Gráfica por rangos ─────────────────────────────────────────────────
     // Sumar todas las filas (clientes) por rango
     const rangeTotals: Record<string, number> = {
-      '01-30': 0, '31-60': 0, '61-90': 0, '91-120': 0, '121-500 Dias': 0,
+      'Vigente': 0, '01-30': 0, '31-60': 0, '61-90': 0, '91-120': 0, '121-500 Dias': 0,
     };
     let grandTotal = 0;
 
     rows.forEach((row: any) => {
+      rangeTotals['Vigente']       += row['Vigente']       ?? row['vigente']       ?? 0;
       rangeTotals['01-30']         += row['01-30']         ?? row['0130']         ?? 0;
       rangeTotals['31-60']         += row['31-60']         ?? row['3160']         ?? 0;
       rangeTotals['61-90']         += row['61-90']         ?? row['6190']         ?? 0;
       rangeTotals['91-120']        += row['91-120']        ?? row['91120']        ?? 0;
       rangeTotals['121-500 Dias']  += row['121-500 Dias']  ?? row['121500Dias']   ?? 0;
       grandTotal                   += row['CO']            ?? row['co']           ?? 0;
+    });
+
+    // Logging detallado para diagnóstico de discrepancias
+    const bucketSums = AGING_RANGES.map(({ col }) => rangeTotals[col] ?? 0);
+    const sumOfBuckets = bucketSums.reduce((a, b) => a + b, 0);
+    console.log('[ANTIGUEDAD-CARTERA] Suma buckets:', {
+      Vigente: rangeTotals['Vigente'],
+      '01-30': rangeTotals['01-30'],
+      '31-60': rangeTotals['31-60'],
+      '61-90': rangeTotals['61-90'],
+      '91-120': rangeTotals['91-120'],
+      '121-500 Dias': rangeTotals['121-500 Dias'],
+      sumOfBuckets,
+      grandTotal,
+      diff: Math.abs(sumOfBuckets - grandTotal),
     });
 
     const chartData: AgingBucket[] = AGING_RANGES.map(({ range, col }) => {
@@ -100,6 +117,7 @@ export async function GET(request: NextRequest) {
       .map((row: any): AgingDetail => ({
         clientName: (row['B'] ?? row['Nombre'] ?? row['b'] ?? '').toString().trim() || 'Sin Nombre',
         rfc:        (row['C'] ?? row['RFC']    ?? row['c'] ?? '').toString().trim() || 'Sin RFC',
+        vigente:     Math.round((row['Vigente']      ?? row['vigente'] ?? 0) * 100) / 100,
         range1to30:  Math.round((row['01-30']        ?? 0) * 100) / 100,
         range31to60: Math.round((row['31-60']        ?? 0) * 100) / 100,
         range61to90: Math.round((row['61-90']        ?? 0) * 100) / 100,

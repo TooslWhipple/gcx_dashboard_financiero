@@ -22,9 +22,12 @@ interface GuaranteeAgingChartProps {
   fechaCorte: string;
   title?: string;
   className?: string;
+  bucketsSum?: number;
+  difference?: number;
 }
 
 const RANGE_LABELS: Record<string, string> = {
+  'Vigente':  'Vigente',
   '1-30':     '1 a 30 días',
   '31-60':    '31-60 días',
   '61-90':    '61-90 días',
@@ -53,8 +56,11 @@ export function GuaranteeAgingChart({
   fechaCorte,
   title = 'Antigüedad de Cartera Garantías',
   className,
+  bucketsSum,
+  difference,
 }: GuaranteeAgingChartProps) {
   const nonZero = chartData.filter((d) => d.amount > 0);
+  const hasDiscrepancy = difference !== undefined && Math.abs(difference) > 0.01;
 
   return (
     <Card className={className}>
@@ -74,6 +80,11 @@ export function GuaranteeAgingChart({
           </div>
         </div>
         <p className="text-label-small text-on-surface-variant mt-1">Corte: {fechaCorte}</p>
+        {hasDiscrepancy && (
+          <div className="mt-2 p-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-800">
+            <span className="font-semibold">Nota:</span> El Total ({formatCurrency(totalAmount)}) incluye saldos vigentes y notas de crédito que los rangos no desglosan. Suma de rangos: {formatCurrency(bucketsSum || 0)}. Diferencia: {formatCurrency(difference || 0)}.
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-0 pb-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start px-3 sm:px-6 pt-2">
