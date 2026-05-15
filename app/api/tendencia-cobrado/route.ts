@@ -98,12 +98,49 @@ export async function GET(request: NextRequest) {
       console.warn(`[TENDENCIA-COBRADO] Año ${year - 1} devolvió 0 filas desde RECO`);
     }
 
+    // Logging de sumas RAW por mes para diagnóstico de discrepancias
+    function logRawSums(rows: any[], label: string) {
+      const rawByMonth = new Map<number, { total: number; count: number }>();
+      for (let m = 1; m <= 12; m++) rawByMonth.set(m, { total: 0, count: 0 });
+      rows.forEach((r) => {
+        const fp = r.FechaPago || r.fechapago || '';
+        if (!fp) return;
+        const mes = new Date(fp).getMonth() + 1;
+        const total = (r.TotalCobrado ?? r.totalcobrado ?? 0) as number;
+        const b = rawByMonth.get(mes);
+        if (b) { b.total += total; b.count += 1; }
+      });
+      const summary = Array.from(rawByMonth.entries())
+        .filter(([_, v]) => v.count > 0)
+        .map(([m, v]) => ({ mes: m, total: Math.round(v.total * 100) / 100, count: v.count }));
+      console.log(`[TENDENCIA-COBRADO] RAW sums ${label}:`, summary);
+
+      // Muestra 3 filas del mes 4 (abril) para verificar
+      const abrilRows = rows.filter((r) => {
+        const fp = r.FechaPago || r.fechapago || '';
+        return fp && new Date(fp).getMonth() + 1 === 4;
+      }).slice(0, 3);
+      if (abrilRows.length > 0) {
+        console.log(`[TENDENCIA-COBRADO] Muestra abril ${label}:`, abrilRows.map((r) => ({
+          factura: r.Factura || r.factura,
+          fechaPago: r.FechaPago || r.fechapago,
+          totalCobrado: r.TotalCobrado ?? r.totalcobrado,
+          gastos: r.GastosME_Cob ?? r.gastosme_cob,
+          ingresos: r.IngresosME_Cob ?? r.ingresosme_cob,
+        })));
+      }
+    }
+
+    logRawSums(currentRows, `año ${year}`);
+    logRawSums(previousRows, `año ${year - 1}`);
+
     const currentYearData = buildMonthlyTrend(currentRows, year);
     const previousYearData = buildMonthlyTrend(previousRows, year - 1);
 
     const currentTotal = currentYearData.reduce((s, m) => s + m.totalCollected, 0);
     const previousTotal = previousYearData.reduce((s, m) => s + m.totalCollected, 0);
-    console.log(`[TENDENCIA-COBRADO] Total año actual: $${currentTotal}, año anterior: $${previousTotal}`);
+    console.log(`[TENDENCIA-COBRADO] AGGREGATED total año actual: $${currentTotal}, año anterior: $${previousTotal}`);
+    console.log(`[TENDENCIA-COBRADO] Por mes año actual:`, currentYearData.map((m) => ({ mes: m.month, total: m.totalCollected, count: m.invoiceCount })));
 
     const response: CollectionTrendData = {
       currentYear: currentYearData,
